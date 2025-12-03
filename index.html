@@ -2174,7 +2174,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Nama Sekolah</label>
-                            <input type="text" id="school-name" class="form-control" value="SMKN 1 Bumijawa">
+                            <input type="text" id="school-name" class="form-control" value="SMKN 1 BUMIJAWA">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Versi Aplikasi</label>
@@ -3028,7 +3028,7 @@
             return `
                 <div style="text-align: center; margin-bottom: 2mm;">
                     <div style="font-weight: bold; font-size: 10px;">BUKTI PEMINJAMAN ALAT</div>
-                    <div style="font-size: 8px;">${settings.schoolName || 'SMKN 1 Bumijawa'}</div>
+                    <div style="font-size: 8px;">${settings.schoolName || 'SMKN 1 BUMIJAWA'}</div>
                 </div>
                 <hr>
                 <table width="100%" cellpadding="0" cellspacing="0">
@@ -5082,7 +5082,7 @@
             const currentLogoName = document.getElementById('current-logo-name');
 
             if (appNameInput) appNameInput.value = settings.appName || 'PinjamAlat';
-            if (schoolNameInput) schoolNameInput.value = settings.schoolName || 'SMKN 1 Bumijawa';
+            if (schoolNameInput) schoolNameInput.value = settings.schoolName || 'SMKN 1 BUMIJAWA';
 
             if (currentLogoPreview) {
                 if (settings.logo) {
@@ -5106,7 +5106,7 @@
             const loginSchoolLogo = document.getElementById('login-school-logo');
 
             if (loginSchoolName) {
-                loginSchoolName.textContent = settings.schoolName || 'SMKN 1 Bumijawa';
+                loginSchoolName.textContent = settings.schoolName || 'SMKN 1 BUMIJAWA';
             }
 
             if (loginSchoolLogo) {
@@ -5197,7 +5197,7 @@
 
                         const settingsData = {
                             appName: settings.appName || 'PinjamAlat',
-                            schoolName: settings.schoolName || 'SMKN 1 Bumijawa',
+                            schoolName: settings.schoolName || 'SMKN 1 BUMIJAWA',
                             logo: settings.logo
                         };
 
