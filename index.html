@@ -2682,36 +2682,40 @@
         let alatDipinjam = [];
 
         // ================== API CONFIGURATION ==================
-        const API_URL = "https://script.google.com/macros/s/AKfycbxjhGB99VVvoITy-zam5jXqgPBGNQa1UDSLZm_6HxnZ1qMC4SRff_35Artk6a-uEzKV/exec";
+        const API_URL = "https://pinjamalat-proxy.alas-xvii.workers.dev/";
 
         // ================== FUNGSI API CALL ==================
         async function callAPI(action, data = {}) {
             try {
-                const payload = {
-                    action: action,
-                    data: data
-                };
-
                 showLoading(`Memproses ${action}...`);
-
+        
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        action: action,
+                        data: data
+                    })
                 });
-
-                // Untuk no-cors, kita tidak bisa membaca response secara langsung
-                // Jadi kita langsung refresh data setelah API call
+        
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+        
+                const result = await response.json();
                 hideLoading();
-                return { success: true };
-
+                return result;
+        
             } catch (error) {
                 console.error('API Error:', error);
                 hideLoading();
-                return { success: false, message: 'Koneksi gagal: ' + error.message };
+                return { 
+                    success: false, 
+                    message: 'Koneksi gagal. Silakan coba lagi atau gunakan mode demo.',
+                    demoMode: true 
+                };
             }
         }
 
