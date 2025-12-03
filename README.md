@@ -27,7 +27,7 @@ Aplikasi web untuk mengelola peminjaman alat dengan integrasi Google Sheets.
 
 ## 📧 Kontak
 
-Email: alas.xvii@gmail.com
+Email: 
 
 ## 📄 Lisensi
 
