@@ -1,8 +1,8 @@
 // Google Apps Script untuk PinjamAlat
 // Deploy sebagai Web App dengan Execute as: me, Who has access: Anyone
 
-const SPREADSHEET_ID = "1xjZqhlt6RxFUHtFbkNE_1nqyph1xbA78jtIYz98A6vw";
-const DRIVE_FOLDER_ID = "1K5ycuoVqPbONG8nUAwU7CMSRnhR-cu8P";
+const SPREADSHEET_ID = "Paster ID Spreadsheet anda disini";
+const DRIVE_FOLDER_ID = "Paster ID Folder Drive anda disini";
 
 function doGet(e) {
   return handleRequest(e);
