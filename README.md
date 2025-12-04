@@ -12,9 +12,13 @@ Aplikasi web untuk mengelola peminjaman alat dengan integrasi Google Sheets.
 ## 🚀 Cara Menggunakan
 
 1. Buka file `index.html` di browser
-2. Pastikan Anda sudah setup Google Apps Script (`Code.gs`)
-3. Deploy Google Apps Script sebagai Web App
-4. Update URL Web App di file HTML
+2. Buat spreadsheet setting sharing menjadi view (lebih aman setting menjadi `editor`) dan setelah itu copy ID Sheetnya
+3. Buat Folder drive dan setting sharingnya menjadi view juga (copy `ID Drivenya`)
+4. ID dari sheet dan folder drive ditempatkan di `Code.gs`
+5. Pastikan Anda sudah setup Google Apps Script (`Code.gs`)
+6. Deploy Google Apps Script sebagai Web App
+7. Update URL Web App di file HTML
+8. Setelah deploy Google Apps Script (`Code.gs`) Copy URL dan tempatkan di `index.html`
 
 ## 📁 File yang Disertakan
 
