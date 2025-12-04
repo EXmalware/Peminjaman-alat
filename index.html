@@ -5296,6 +5296,10 @@
                     loginSchoolLogo.style.display = DEFAULT_LOGO_URL;
                 }
                 loginSchoolLogo.style.display = 'block';
+                loginSchoolLogo.onerror = function() {
+                    console.error('Gagal memuat logo:', this.src);
+                    this.src = DEFAULT_LOGO_URL; // Fallback ke logo default
+                };
             }
 
             // Apply to sidebar
@@ -5313,6 +5317,10 @@
                     sidebarLogo.src = DEFAULT_LOGO_URL; // <-- Default logo
                 }
                 sidebarLogo.style.display = 'block';
+                sidebarLogo.onerror = function() {
+                    console.error('Gagal memuat logo sidebar:', this.src);
+                    this.src = DEFAULT_LOGO_URL; // Fallback ke logo default
+                };
             }
         }
 
