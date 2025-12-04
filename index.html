@@ -1020,8 +1020,8 @@
                 max-width: 58mm !important;
                 padding: 2mm !important;
                 margin: 0 !important;
-                font-size: 9px !important;
-                line-height: 1.2 !important;
+                font-size: 11px !important;
+                line-height: 1.3 !important;
                 font-family: 'Courier New', monospace !important;
                 background: white !important;
                 color: black !important;
@@ -1033,19 +1033,19 @@
 
             #thermal-print-content table {
                 width: 100% !important;
-                font-size: 8px !important;
+                font-size: 10px !important;
                 border-collapse: collapse !important;
             }
 
             #thermal-print-content td {
-                padding: 1px 2px !important;
+                padding: 2px 3px !important;
                 border: none !important;
                 vertical-align: top !important;
             }
 
             #thermal-print-content .barcode-container {
                 text-align: center !important;
-                margin: 2mm 0 !important;
+                margin: 3mm 0 !important;
                 padding: 0 !important;
                 border: none !important;
             }
@@ -1058,7 +1058,7 @@
 
             #thermal-print-content hr {
                 border-top: 1px dashed #000 !important;
-                margin: 1mm 0 !important;
+                margin: 2mm 0 !important;
             }
 
             .no-print {
@@ -3058,8 +3058,8 @@
                     if (alatData) {
                         // Potong nama alat jika terlalu panjang
                         let namaAlat = alatData.nama;
-                        if (namaAlat.length > 20) {
-                            namaAlat = namaAlat.substring(0, 17) + '...';
+                        if (namaAlat.length > 18) {
+                            namaAlat = namaAlat.substring(0, 15) + '...';
                         }
                         alatList += `<tr>
                             <td>${namaAlat}</td>
@@ -3095,7 +3095,7 @@
                     <div style="font-size: 8px;">${settings.schoolName || 'SMKN 1 BUMIJAWA'}</div>
                 </div>
                 <hr>
-                <table width="100%" cellpadding="0" cellspacing="0">
+                <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 10px;">
                     <tr>
                         <td width="40%"><strong>No. Pinjam:</strong></td>
                         <td>${peminjamanData.nomor_peminjaman}</td>
@@ -3118,21 +3118,21 @@
                     </tr>
                 </table>
                 <hr>
-                <div style="margin-bottom: 1mm;"><strong>Alat yang Dipinjam:</strong></div>
-                <table width="100%" cellpadding="0" cellspacing="0">
+                <div style="margin-bottom: 2mm;"><strong>Alat yang Dipinjam:</strong></div>
+                <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 10px;">
                     ${alatList}
                 </table>
                 <hr>
-                <div style="text-align: center; margin: 2mm 0;">
+                <div style="text-align: center; margin: 3mm 0;">
                     <img src="${barcodeDataUrl}" style="width: 100%; height: auto; max-width: 200px;">
                     <div style="font-size: 7px; margin-top: 1mm;">${barcodeText}</div>
                 </div>
                 <hr>
-                <div style="text-align: center; font-size: 8px; margin-top: 3mm;">
+                <div style="text-align: center; font-size: 9px; margin-top: 3mm;">
                     <div>Simpan bukti ini untuk pengembalian</div>
                     <div>Terima kasih</div>
                 </div>
-                <div style="text-align: center; font-size: 7px; margin-top: 5mm;">
+                <div style="text-align: center; font-size: 8px; margin-top: 5mm;">
                     ${new Date().toLocaleString('id-ID')}
                 </div>
             `;
@@ -3241,10 +3241,10 @@
                         width: 58mm !important;
                         min-width: 58mm !important;
                         max-width: 58mm !important;
-                        padding: 2mm !important;
+                        padding: 3mm !important;
                         margin: 0 !important;
-                        font-size: 9px !important;
-                        line-height: 1.2 !important;
+                        font-size: 11px !important;
+                        line-height: 1.3 !important;
                         font-family: 'Courier New', monospace !important;
                         background: white !important;
                         color: black !important;
@@ -3256,19 +3256,19 @@
                     
                     #thermal-print-content table {
                         width: 100% !important;
-                        font-size: 8px !important;
+                        font-size: 10px !important;
                         border-collapse: collapse !important;
                     }
                     
                     #thermal-print-content td {
-                        padding: 1px 2px !important;
+                        padding: 2px 3px !important;
                         border: none !important;
                         vertical-align: top !important;
                     }
                     
                     #thermal-print-content .barcode-container {
                         text-align: center !important;
-                        margin: 2mm 0 !important;
+                        margin: 3mm 0 !important;
                         padding: 0 !important;
                         border: none !important;
                     }
@@ -3281,7 +3281,7 @@
                     
                     #thermal-print-content hr {
                         border-top: 1px dashed #000 !important;
-                        margin: 1mm 0 !important;
+                        margin: 2mm 0 !important;
                     }
                     
                     .no-print {
@@ -3298,6 +3298,7 @@
                 thermalContainer.style.position = 'absolute';
                 thermalContainer.style.left = '0';
                 thermalContainer.style.top = '0';
+                thermalContainer.style.fontSize = '11px';
 
                 // Trigger print
                 window.print();
