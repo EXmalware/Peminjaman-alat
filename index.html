@@ -374,7 +374,7 @@
             font-family: 'Poppins', sans-serif;
             font-weight: 600;
             font-size: 24px;
-            color: var(--light);
+            color: var(--dark);
             margin-bottom: 5px;
             line-height: 1.3;
         }
@@ -1207,7 +1207,61 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.5);
             z-index: 999;
-            backdrop-filter: blur(3px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* PERBAIKAN: Detail Peminjaman Modal - Fix visibility */
+        #detail-peminjaman-content {
+            background: white;
+            color: var(--dark);
+            padding: 15px;
+            border-radius: var(--radius-sm);
+        }
+
+        #detail-peminjaman-content p,
+        #detail-peminjaman-content div,
+        #detail-peminjaman-content span,
+        #detail-peminjaman-content strong {
+            color: var(--dark) !important;
+        }
+
+        #detail-peminjaman-content .detail-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        #detail-peminjaman-content .detail-label {
+            font-weight: 600;
+            color: var(--gray);
+        }
+
+        #detail-peminjaman-content .detail-value {
+            color: var(--dark);
+            font-weight: 500;
+        }
+
+        /* PERBAIKAN: Settings Page - Fix form label visibility */
+        #settings-page {
+            background: transparent;
+        }
+
+        #settings-page .form-label {
+            color: var(--dark) !important;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        #settings-page .form-control {
+            background: white;
+            color: var(--dark);
         }
 
         /* Settings Grid */
@@ -2221,6 +2275,15 @@
                                     <span>Klik untuk memilih logo<br>Format: JPG, PNG, SVG (max: 2MB)</span>
                                 </label>
                             </div>
+                        </div>
+
+                        <!-- Logo URL Input -->
+                        <div class="form-group">
+                            <label class="form-label">Atau Gunakan URL Logo</label>
+                            <input type="url" id="logo-url" class="form-control"
+                                placeholder="https://example.com/logo.png" onchange="previewLogoUrl(this.value)">
+                            <small style="color: var(--gray); font-size: 12px;">Masukkan URL gambar langsung (akhiran
+                                .jpg, .png, .svg)</small>
                         </div>
 
                         <!-- New Logo Preview -->
@@ -3359,6 +3422,52 @@
 
             // Load initial settings
             loadSettings();
+
+            // PERBAIKAN: Auto-login jika ada session tersimpan
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    await autoLogin();
+                } catch (error) {
+                    console.error('Auto-login error:', error);
+                    localStorage.removeItem('currentUser');
+                }
+            }
+        }
+
+        async function autoLogin() {
+            // Update UI dengan info user
+            document.getElementById('user-fullname').textContent = currentUser.full_name;
+            document.getElementById('user-role').textContent = currentUser.role === 'superuser' ? 'Super User' : 'Guru';
+            document.getElementById('user-avatar').textContent = currentUser.full_name.charAt(0).toUpperCase();
+
+            // Tampilkan menu superuser jika perlu
+            document.querySelectorAll('.superuser-only').forEach(el => {
+                el.style.display = currentUser.role === 'superuser' ? 'flex' : 'none';
+            });
+
+            // Load data dari spreadsheet
+            await loadDataFromSpreadsheet();
+
+            // Update dashboard stats
+            updateDashboardStats();
+
+            // Load data tables
+            loadDashboardData();
+            loadAlatTable();
+            loadPeminjamanTable();
+            loadRiwayatTable();
+            loadKategoriTable();
+            loadJurusanTable();
+            loadUsersTable();
+
+            // Switch ke halaman app
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+
+            // Show dashboard
+            showPage('dashboard');
         }
 
         async function handleLogin() {
@@ -3391,6 +3500,9 @@
                 if (result.success) {
                     // Simpan user yang login
                     currentUser = result.data;
+
+                    // PERBAIKAN: Simpan ke localStorage untuk persistence
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
                     // Update UI dengan info user
                     document.getElementById('user-fullname').textContent = currentUser.full_name;
@@ -3438,6 +3550,10 @@
 
         function handleLogout() {
             currentUser = null;
+
+            // PERBAIKAN: Hapus dari localStorage
+            localStorage.removeItem('currentUser');
+
             document.getElementById('app').style.display = 'none';
             document.getElementById('login-page').style.display = 'flex';
 
@@ -4587,11 +4703,19 @@
                 const result = await saveDataToSpreadsheet('updateAlat', alatData);
                 if (result.success) {
                     alert('Data alat berhasil diperbarui!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadAlatTable();
+                    updateDashboardStats();
                 }
             } else {
                 const result = await saveDataToSpreadsheet('saveAlat', alatData);
                 if (result.success) {
                     alert('Data alat berhasil disimpan!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadAlatTable();
+                    updateDashboardStats();
                 }
             }
 
@@ -4609,6 +4733,10 @@
                 const result = await saveDataToSpreadsheet('deleteAlat', { id: id });
                 if (result.success) {
                     alert('Alat berhasil dihapus!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadAlatTable();
+                    updateDashboardStats();
                 }
             }
         }
@@ -4688,6 +4816,12 @@
 
                 closeModal('peminjaman-modal');
                 alert('Peminjaman berhasil disimpan!');
+
+                // PERBAIKAN: Auto-refresh data
+                await loadDataFromSpreadsheet();
+                loadPeminjamanTable();
+                loadRiwayatTable();
+                updateDashboardStats();
 
                 // Tampilkan detail dengan barcode
                 const newPeminjaman = peminjaman.find(p => p.nomor_peminjaman === nomorPeminjaman);
@@ -4815,11 +4949,17 @@
                 const result = await saveDataToSpreadsheet('saveKategori', kategoriData);
                 if (result.success) {
                     alert('Data kategori berhasil diperbarui!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadKategoriTable();
                 }
             } else {
                 const result = await saveDataToSpreadsheet('saveKategori', kategoriData);
                 if (result.success) {
                     alert('Data kategori berhasil disimpan!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadKategoriTable();
                 }
             }
 
@@ -4842,6 +4982,9 @@
                 const result = await saveDataToSpreadsheet('deleteKategori', { id: id });
                 if (result.success) {
                     alert('Kategori berhasil dihapus!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadKategoriTable();
                 }
             }
         }
@@ -4900,11 +5043,17 @@
                 const result = await saveDataToSpreadsheet('saveJurusan', jurusanData);
                 if (result.success) {
                     alert('Data jurusan berhasil diperbarui!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadJurusanTable();
                 }
             } else {
                 const result = await saveDataToSpreadsheet('saveJurusan', jurusanData);
                 if (result.success) {
                     alert('Data jurusan berhasil disimpan!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadJurusanTable();
                 }
             }
 
@@ -4934,6 +5083,9 @@
                 const result = await saveDataToSpreadsheet('deleteJurusan', { id: id });
                 if (result.success) {
                     alert('Jurusan berhasil dihapus!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadJurusanTable();
                 }
             }
         }
@@ -4996,14 +5148,21 @@
 
         async function saveUser() {
             const id = document.getElementById('user-id').value;
-            const nama = document.getElementById('user-nama').value;
-            const username = document.getElementById('user-username').value;
+            const nama = document.getElementById('user-nama').value.trim();
+            const username = document.getElementById('user-username').value.trim();
             const password = document.getElementById('user-password').value;
             const role = document.getElementById('user-role').value;
             const jurusanId = document.getElementById('user-jurusan').value;
 
-            if (!nama || !username || !password || !role) {
-                alert('Semua field wajib diisi!');
+            // PERBAIKAN: Validasi yang lebih tepat
+            if (!nama || !username || !role) {
+                alert('Nama, Username, dan Role wajib diisi!');
+                return;
+            }
+
+            // Password wajib untuk user baru
+            if (!id && !password) {
+                alert('Password wajib diisi untuk pengguna baru!');
                 return;
             }
 
@@ -5022,7 +5181,7 @@
             const userData = {
                 full_name: nama,
                 username: username,
-                password: password,
+                password: password, // Kirim password (kosong jika tidak diubah saat edit)
                 role: role,
                 jurusan_id: role === 'guru' ? parseInt(jurusanId) : null
             };
@@ -5032,11 +5191,17 @@
                 const result = await saveDataToSpreadsheet('saveUser', userData);
                 if (result.success) {
                     alert('Data pengguna berhasil diperbarui!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadUsersTable();
                 }
             } else {
                 const result = await saveDataToSpreadsheet('saveUser', userData);
                 if (result.success) {
                     alert('Data pengguna berhasil disimpan!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadUsersTable();
                 }
             }
 
@@ -5064,6 +5229,9 @@
                 const result = await saveDataToSpreadsheet('deleteUser', { id: id });
                 if (result.success) {
                     alert('Pengguna berhasil dihapus!');
+                    // PERBAIKAN: Auto-refresh data
+                    await loadDataFromSpreadsheet();
+                    loadUsersTable();
                 }
             }
         }
@@ -5184,42 +5352,67 @@
             reader.readAsDataURL(file);
         }
 
+        function previewLogoUrl(url) {
+            if (!url) return;
+
+            const newLogoPreview = document.getElementById('new-logo-preview');
+            const newLogoPreviewContainer = document.getElementById('new-logo-preview-container');
+
+            if (newLogoPreview) {
+                newLogoPreview.src = url;
+                newLogoPreviewContainer.style.display = 'block';
+
+                // Reset file upload if any
+                document.getElementById('logo-upload').value = '';
+            }
+        }
+
         async function saveLogo() {
             const newLogoPreview = document.getElementById('new-logo-preview');
             const logoUpload = document.getElementById('logo-upload');
+            const logoUrlInput = document.getElementById('logo-url');
 
             if (logoUpload.files.length > 0) {
                 const file = logoUpload.files[0];
                 try {
                     const uploadResult = await uploadFoto(file);
                     if (uploadResult.success) {
-                        settings.logo = uploadResult.downloadUrl;
-
-                        const settingsData = {
-                            appName: settings.appName || 'PinjamAlat',
-                            schoolName: settings.schoolName || 'SMKN 1 BUMIJAWA',
-                            logo: settings.logo
-                        };
-
-                        const result = await saveDataToSpreadsheet('saveSettings', settingsData);
-                        if (result.success) {
-                            applySettings();
-
-                            // Reset preview
-                            const newLogoPreviewContainer = document.getElementById('new-logo-preview-container');
-                            newLogoPreviewContainer.style.display = 'none';
-                            logoUpload.value = '';
-
-                            alert('Logo berhasil disimpan!');
-                        }
+                        await saveLogoSettings(uploadResult.downloadUrl);
                     } else {
                         alert('Gagal mengunggah logo: ' + uploadResult.message);
                     }
                 } catch (error) {
                     alert('Gagal mengunggah logo: ' + error.message);
                 }
+            } else if (logoUrlInput && logoUrlInput.value) {
+                await saveLogoSettings(logoUrlInput.value);
             } else {
-                alert('Pilih logo terlebih dahulu!');
+                alert('Pilih logo atau masukkan URL terlebih dahulu!');
+            }
+        }
+
+        async function saveLogoSettings(url) {
+            settings.logo = url;
+
+            const settingsData = {
+                appName: settings.appName || 'PinjamAlat',
+                schoolName: settings.schoolName || 'SMKN 1 BUMIJAWA',
+                logo: settings.logo
+            };
+
+            const result = await saveDataToSpreadsheet('saveSettings', settingsData);
+            if (result.success) {
+                applySettings();
+
+                // Reset preview
+                const newLogoPreviewContainer = document.getElementById('new-logo-preview-container');
+                newLogoPreviewContainer.style.display = 'none';
+                document.getElementById('logo-upload').value = '';
+                if (document.getElementById('logo-url')) {
+                    document.getElementById('logo-url').value = '';
+                }
+
+                alert('Logo berhasil disimpan!');
             }
         }
 
