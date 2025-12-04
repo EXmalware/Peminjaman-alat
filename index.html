@@ -2748,6 +2748,7 @@
 
         // ================== API CONFIGURATION ==================
         const API_URL = "https://script.google.com/macros/s/AKfycbyGA7Uc9spAOVt_cDaWRR8pYosCGiWB0KH1T7zf04JO9ujUzNb3XYksr6c9dDO9vbxM/exec";
+        const DEFAULT_LOGO_URL = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png";
 
         // ================== FUNGSI API CALL ==================
         async function callAPI(action, data = {}) {
@@ -5258,7 +5259,6 @@
         }
 
         function loadSettingsPage() {
-            const defaultLogoUrl = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png";
             // Apply settings to settings page
             const appNameInput = document.getElementById('app-name');
             const schoolNameInput = document.getElementById('school-name');
@@ -5273,7 +5273,7 @@
                     currentLogoPreview.src = settings.logo;
                     currentLogoName.textContent = 'Logo Sekolah (Custom)';
                 } else {
-                    currentLogoPreview.src = defaultLogoUrl; // <-- Default logo
+                    currentLogoPreview.src = DEFAULT_LOGO_URL; // <-- Default logo
                     currentLogoName.textContent = 'Logo Sekolah (Default)';
                 }
                 currentLogoPreview.style.display = 'block';
@@ -5281,7 +5281,6 @@
         }
 
         function applySettings() {
-            const defaultLogoUrl = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png";
             // Apply to login page
             const loginSchoolName = document.getElementById('login-school-name');
             const loginSchoolLogo = document.getElementById('login-school-logo');
@@ -5294,7 +5293,7 @@
                 if (settings.logo) {
                     loginSchoolLogo.src = settings.logo;
                 } else {
-                    loginSchoolLogo.style.display = defaultLogoUrl;
+                    loginSchoolLogo.style.display = DEFAULT_LOGO_URL;
                 }
                 loginSchoolLogo.style.display = 'block';
             }
@@ -5430,8 +5429,7 @@
         }
 
         function setDefaultLogo(logoType) {
-            const defaultLogoUrl = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png";
-    
+               
                 if (logoType === 'remove') {
                     settings.logo = null; // Akan menggunakan default
                 } else {
