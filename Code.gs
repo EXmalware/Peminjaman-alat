@@ -103,13 +103,10 @@ function handleRequest(e) {
         result = { success: false, message: 'Action not found' };
     }
     
-    // Return dengan CORS headers
+    // Return response (CORS handled by deployment settings)
     return ContentService
       .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*')
-      .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      .setMimeType(ContentService.MimeType.JSON);
       
   } catch(error) {
     console.error('Error:', error);
@@ -118,21 +115,15 @@ function handleRequest(e) {
         success: false,
         message: error.toString()
       }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*')
-      .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-// Tambahkan fungsi OPTIONS untuk handle preflight request
-function doOptions() {
+// Fungsi OPTIONS untuk handle preflight request
+function doOptions(e) {
   return ContentService
-    .createTextOutput('')
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    .createTextOutput('{"status":"ok"}')
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 
