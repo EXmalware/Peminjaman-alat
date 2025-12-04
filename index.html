@@ -374,7 +374,7 @@
             font-family: 'Poppins', sans-serif;
             font-weight: 600;
             font-size: 24px;
-            color: var(--dark);
+            color: var(--light);
             margin-bottom: 5px;
             line-height: 1.3;
         }
@@ -2676,7 +2676,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Role</label>
-                        <select id="user-role" class="form-control" required>
+                        <select id="form-user-role" class="form-control" required>
                             <option value="">Pilih Role</option>
                             <option value="guru">Guru</option>
                             <option value="superuser">Super User</option>
@@ -2692,7 +2692,7 @@
                         <button type="button" class="btn btn-outline" onclick="closeModal('user-modal')">
                             Batal
                         </button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="button" class="btn btn-primary" onclick="saveUser()">
                             <i class="fas fa-save"></i> Simpan
                         </button>
                     </div>
@@ -5104,7 +5104,7 @@
                     document.getElementById('user-nama').value = userData.full_name;
                     document.getElementById('user-username').value = userData.username;
                     document.getElementById('user-password').value = userData.password;
-                    document.getElementById('user-role').value = userData.role;
+                    document.getElementById('form-user-role').value = userData.role;
                     document.getElementById('user-jurusan').value = userData.jurusan_id || '';
                 }
             } else {
@@ -5126,7 +5126,7 @@
             });
 
             // Show/hide jurusan field based on role
-            const roleSelect = document.getElementById('user-role');
+            const roleSelect = document.getElementById('form-user-role');
             roleSelect.addEventListener('change', function () {
                 if (this.value === 'guru') {
                     jurusanSelect.parentElement.style.display = 'block';
@@ -5151,11 +5151,26 @@
             const nama = document.getElementById('user-nama').value.trim();
             const username = document.getElementById('user-username').value.trim();
             const password = document.getElementById('user-password').value;
-            const role = document.getElementById('user-role').value;
+
+            const roleElement = document.getElementById('form-user-role');
+            const role = roleElement ? roleElement.value : 'ELEMENT_NOT_FOUND';
+
             const jurusanId = document.getElementById('user-jurusan').value;
+
+            // DEBUGGING
+            console.log('DEBUG ROLE:', {
+                element: roleElement,
+                tagName: roleElement ? roleElement.tagName : 'N/A',
+                value: role,
+                id: roleElement ? roleElement.id : 'N/A',
+                duplicateCheck: document.querySelectorAll('#form-user-role').length
+            });
+
+            console.log('Saving User:', { id, nama, username, role, jurusanId });
 
             // PERBAIKAN: Validasi yang lebih tepat
             if (!nama || !username || !role) {
+                console.error('Validation failed:', { nama, username, role });
                 alert('Nama, Username, dan Role wajib diisi!');
                 return;
             }
