@@ -6302,20 +6302,7 @@
 
         // ================== INISIALISASI APLIKASI ==================
         document.addEventListener('DOMContentLoaded', function () {
-            // Setup login form
-            const loginForm = document.getElementById('login-form');
-            if (loginForm) {
-                loginForm.addEventListener('submit', function (e) {
-                    e.preventDefault();
-                    handleLogin();
-                });
-            }
-
-            // Check mobile view on load
-            checkMobileView();
-
-            // Check mobile view on resize
-            window.addEventListener('resize', checkMobileView);
+            initApp();
         });
     </script>
 </body>
