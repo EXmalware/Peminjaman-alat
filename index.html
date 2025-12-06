@@ -735,6 +735,38 @@
             opacity: 0.7;
         }
 
+        /* Password Toggle */
+        .password-input-wrapper {
+            position: relative;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--gray);
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 16px;
+            z-index: 10;
+        }
+
+        .password-toggle-btn:hover {
+            color: var(--primary);
+        }
+
+        .password-input-wrapper .form-control {
+            padding-right: 45px;
+        }
+
+
         /* File Input Custom */
         .file-input-container {
             position: relative;
@@ -1623,9 +1655,27 @@
             .stat-card,
             .top-bar,
             .modal-content,
-            .settings-card {
+            .settings-card,
+            .mobile-table-card {
                 background: #1e1e1e;
                 color: #f0f0f0;
+            }
+
+            .page-title h1 {
+                color: #f0f0f0 !important;
+            }
+
+            .page-title p {
+                color: #b0b0b0 !important;
+            }
+
+            .mobile-menu-btn {
+                color: #f0f0f0 !important;
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            .mobile-menu-btn:hover {
+                background: rgba(255, 255, 255, 0.2);
             }
 
             .form-control {
@@ -1641,6 +1691,40 @@
             .file-input-label {
                 background: #2d2d2d;
                 border-color: #404040;
+            }
+
+            .mobile-table-label {
+                color: #b0b0b0 !important;
+            }
+
+            .mobile-table-value {
+                color: #f0f0f0 !important;
+            }
+
+            .table td {
+                color: #f0f0f0;
+                border-bottom-color: #404040;
+            }
+
+            .table tbody tr:hover {
+                background: rgba(67, 97, 238, 0.15);
+            }
+
+            .form-label {
+                color: #f0f0f0 !important;
+            }
+
+            .stat-content h3,
+            .stat-content p {
+                color: #f0f0f0;
+            }
+
+            .user-details h3 {
+                color: #f0f0f0;
+            }
+
+            .table-header h3 {
+                color: #f0f0f0;
             }
         }
 
@@ -1698,7 +1782,14 @@
                 </div>
                 <div class="form-group">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="Masukkan password" required>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="password" class="form-control" placeholder="Masukkan password"
+                            required>
+                        <button type="button" class="password-toggle-btn" id="password-toggle"
+                            onclick="togglePassword()">
+                            <i class="fas fa-eye" id="password-toggle-icon"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">
                     <i class="fas fa-sign-in-alt"></i>
@@ -2023,6 +2114,11 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Mobile Cards -->
+                    <div class="mobile-table-card" id="peminjaman-table-mobile">
+                        <!-- Data akan diisi oleh JavaScript -->
+                    </div>
                 </div>
             </div>
 
@@ -2036,7 +2132,7 @@
                                 <button class="btn btn-primary" id="input-manual-btn">
                                     <i class="fas fa-keyboard"></i> Input Manual
                                 </button>
-                                <button class="btn btn-info" id="scan-barcode-btn">
+                                <button class="btn btn-info" id="scan-barcode-btn" onclick="showManualReturnModal()">
                                     <i class="fas fa-barcode"></i> Scan Barcode
                                 </button>
                             </div>
@@ -2058,6 +2154,11 @@
                                 <!-- Data akan diisi oleh JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile Cards -->
+                    <div class="mobile-table-card" id="pengembalian-table-mobile">
+                        <!-- Data akan diisi oleh JavaScript -->
                     </div>
                 </div>
             </div>
@@ -2096,6 +2197,11 @@
                                 <!-- Data akan diisi oleh JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile Cards -->
+                    <div class="mobile-table-card" id="riwayat-table-mobile">
+                        <!-- Data akan diisi oleh JavaScript -->
                     </div>
                 </div>
             </div>
@@ -2136,6 +2242,11 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Mobile Cards -->
+                    <div class="mobile-table-card" id="kategori-table-mobile">
+                        <!-- Data akan diisi oleh JavaScript -->
+                    </div>
                 </div>
             </div>
 
@@ -2173,6 +2284,11 @@
                                 <!-- Data akan diisi oleh JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile Cards -->
+                    <div class="mobile-table-card" id="jurusan-table-mobile">
+                        <!-- Data akan diisi oleh JavaScript -->
                     </div>
                 </div>
             </div>
@@ -2212,6 +2328,11 @@
                                 <!-- Data akan diisi oleh JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile Cards -->
+                    <div class="mobile-table-card" id="users-table-mobile">
+                        <!-- Data akan diisi oleh JavaScript -->
                     </div>
                 </div>
             </div>
@@ -2279,9 +2400,10 @@
 
                         <!-- Logo URL Input -->
                         <div class="form-group">
-                            <label class="form-label">Atau Gunakan URL Logo</label>
+                            <label class="form-label">Logo Sekolah</label>
                             <input type="url" id="logo-url" class="form-control"
-                                placeholder="https://example.com/logo.png" onchange="previewLogoUrl(this.value)">
+                                placeholder="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png"
+                                onchange="previewLogoUrl(this.value)">
                             <small style="color: var(--gray); font-size: 12px;">Masukkan URL gambar langsung (akhiran
                                 .jpg, .png, .svg)</small>
                         </div>
@@ -3771,6 +3893,24 @@
 
             // Load alat mobile view
             loadAlatTableMobile();
+
+            // Load peminjaman mobile view
+            loadPeminjamanTableMobile();
+
+            // Load pengembalian mobile view
+            loadPengembalianTableMobile();
+
+            // Load riwayat mobile view
+            loadRiwayatTableMobile();
+
+            // Load kategori mobile view
+            loadKategoriTableMobile();
+
+            // Load jurusan mobile view
+            loadJurusanTableMobile();
+
+            // Load users mobile view
+            loadUsersTableMobile();
         }
 
         function loadRecentPeminjamanMobile() {
@@ -3894,6 +4034,396 @@
                     <div class="mobile-table-row">
                         <span class="mobile-table-label">Kondisi</span>
                         <span class="mobile-table-value"><span class="badge ${getKondisiBadgeClass(a.kondisi)}">${a.kondisi}</span></span>
+                    </div>
+                    ${actions}
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        function loadPeminjamanTableMobile() {
+            const container = document.getElementById('peminjaman-table-mobile');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            // Filter peminjaman berdasarkan user role
+            let filteredPeminjaman = peminjaman.filter(p => p.status === 'Dipinjam');
+            if (currentUser && currentUser.role !== 'superuser' && currentUser.jurusan_id) {
+                filteredPeminjaman = filteredPeminjaman.filter(p => p.jurusan_id == currentUser.jurusan_id);
+            }
+
+            if (filteredPeminjaman.length === 0) {
+                container.innerHTML = '<div class="mobile-table-item" style="text-align: center; color: var(--gray);">Tidak ada data peminjaman</div>';
+                return;
+            }
+
+            filteredPeminjaman.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'mobile-table-item';
+
+                const actions = `
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-sm btn-info" onclick="showDetailPeminjamanWithBarcode(${p.id})" style="flex: 1;">
+                            <i class="fas fa-eye"></i> Detail
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="printThermalSingle(${p.id})" style="flex: 1;">
+                            <i class="fas fa-print"></i> Cetak
+                        </button>
+                    </div>
+                `;
+
+                item.innerHTML = `
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">No. Peminjaman</span>
+                        <span class="mobile-table-value">${p.nomor_peminjaman}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Nama Peminjam</span>
+                        <span class="mobile-table-value">${p.nama_peminjam}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Kelas</span>
+                        <span class="mobile-table-value">${p.kelas_unit}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Tanggal Pinjam</span>
+                        <span class="mobile-table-value">${formatDate(p.tanggal_pinjam)}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Tanggal Kembali</span>
+                        <span class="mobile-table-value">${formatDate(p.tanggal_kembali_estimasi)}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Status</span>
+                        <span class="mobile-table-value"><span class="badge ${getStatusBadgeClass(p.status)}">${p.status}</span></span>
+                    </div>
+                    ${actions}
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        function loadPengembalianTableMobile() {
+            const container = document.getElementById('pengembalian-table-mobile');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            // Filter peminjaman yang aktif
+            let filteredPeminjaman = peminjaman.filter(p => p.status === 'Dipinjam');
+            if (currentUser && currentUser.role !== 'superuser' && currentUser.jurusan_id) {
+                filteredPeminjaman = filteredPeminjaman.filter(p => p.jurusan_id == currentUser.jurusan_id);
+            }
+
+            if (filteredPeminjaman.length === 0) {
+                container.innerHTML = '<div class="mobile-table-item" style="text-align: center; color: var(--gray);">Tidak ada peminjaman aktif</div>';
+                return;
+            }
+
+            filteredPeminjaman.forEach(p => {
+                // Get alat names
+                let alatNames = [];
+                if (p.items && p.items.length > 0) {
+                    p.items.forEach(item => {
+                        const alatData = alat.find(a => a.id == item.id);
+                        if (alatData) {
+                            alatNames.push(`${alatData.nama} x${item.jumlah}`);
+                        }
+                    });
+                }
+
+                const item = document.createElement('div');
+                item.className = 'mobile-table-item';
+
+                const actions = `
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-sm btn-success" onclick="processPengembalian(${p.id})" style="flex: 1;">
+                            <i class="fas fa-check"></i> Proses
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="showDetailPeminjamanWithBarcode(${p.id})" style="flex: 1;">
+                            <i class="fas fa-eye"></i> Detail
+                        </button>
+                    </div>
+                `;
+
+                item.innerHTML = `
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">No. Peminjaman</span>
+                        <span class="mobile-table-value">${p.nomor_peminjaman}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Nama Peminjam</span>
+                        <span class="mobile-table-value">${p.nama_peminjam}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Alat</span>
+                        <span class="mobile-table-value">${alatNames.join(', ') || '-'}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Tanggal Pinjam</span>
+                        <span class="mobile-table-value">${formatDate(p.tanggal_pinjam)}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Status</span>
+                        <span class="mobile-table-value"><span class="badge ${getStatusBadgeClass(p.status)}">${p.status}</span></span>
+                    </div>
+                    ${actions}
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        function loadRiwayatTableMobile() {
+            const container = document.getElementById('riwayat-table-mobile');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            // Filter riwayat berdasarkan user role
+            let filteredRiwayat = peminjaman;
+            if (currentUser && currentUser.role !== 'superuser' && currentUser.jurusan_id) {
+                filteredRiwayat = peminjaman.filter(p => p.jurusan_id == currentUser.jurusan_id);
+            }
+
+            if (filteredRiwayat.length === 0) {
+                container.innerHTML = '<div class="mobile-table-item" style="text-align: center; color: var(--gray);">Tidak ada riwayat</div>';
+                return;
+            }
+
+            filteredRiwayat.forEach(p => {
+                // Get alat names
+                let alatNames = [];
+                if (p.items && p.items.length > 0) {
+                    p.items.forEach(item => {
+                        const alatData = alat.find(a => a.id == item.id);
+                        if (alatData) {
+                            alatNames.push(`${alatData.nama} x${item.jumlah}`);
+                        }
+                    });
+                }
+
+                const item = document.createElement('div');
+                item.className = 'mobile-table-item';
+
+                const actions = `
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-sm btn-info" onclick="showDetailPeminjamanWithBarcode(${p.id})" style="flex: 1;">
+                            <i class="fas fa-eye"></i> Detail
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="printThermalSingle(${p.id})" style="flex: 1;">
+                            <i class="fas fa-print"></i> Cetak
+                        </button>
+                    </div>
+                `;
+
+                item.innerHTML = `
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">No. Peminjaman</span>
+                        <span class="mobile-table-value">${p.nomor_peminjaman}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Nama Peminjam</span>
+                        <span class="mobile-table-value">${p.nama_peminjam}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Kelas</span>
+                        <span class="mobile-table-value">${p.kelas_unit}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Alat</span>
+                        <span class="mobile-table-value">${alatNames.join(', ') || '-'}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Tanggal Pinjam</span>
+                        <span class="mobile-table-value">${formatDate(p.tanggal_pinjam)}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Tanggal Kembali</span>
+                        <span class="mobile-table-value">${formatDate(p.tanggal_kembali_aktual) || '-'}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Status</span>
+                        <span class="mobile-table-value"><span class="badge ${getStatusBadgeClass(p.status)}">${p.status}</span></span>
+                    </div>
+                    ${actions}
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        function loadKategoriTableMobile() {
+            const container = document.getElementById('kategori-table-mobile');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            // Filter kategori berdasarkan user role
+            let filteredKategori = kategori;
+            if (currentUser && currentUser.role !== 'superuser' && currentUser.jurusan_id) {
+                filteredKategori = kategori.filter(k => k.jurusan_id == currentUser.jurusan_id);
+            }
+
+            if (filteredKategori.length === 0) {
+                container.innerHTML = '<div class="mobile-table-item" style="text-align: center; color: var(--gray);">Tidak ada data kategori</div>';
+                return;
+            }
+
+            filteredKategori.forEach((k, index) => {
+                // Count alat in this kategori
+                const alatCount = alat.filter(a => a.kategori_id == k.id).length;
+
+                // Get jurusan name
+                const jurusanData = jurusan.find(j => j.id == k.jurusan_id);
+                const jurusanNama = jurusanData ? jurusanData.nama : '-';
+
+                const item = document.createElement('div');
+                item.className = 'mobile-table-item';
+
+                const actions = `
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-sm btn-info" onclick="editKategori(${k.id})" style="flex: 1;">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteKategori(${k.id})" ${alatCount > 0 ? 'disabled' : ''} style="flex: 1;">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </div>
+                `;
+
+                item.innerHTML = `
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">No</span>
+                        <span class="mobile-table-value">${index + 1}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Nama Kategori</span>
+                        <span class="mobile-table-value">${k.nama}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Jurusan</span>
+                        <span class="mobile-table-value">${jurusanNama}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Jumlah Alat</span>
+                        <span class="mobile-table-value">${alatCount}</span>
+                    </div>
+                    ${actions}
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        function loadJurusanTableMobile() {
+            const container = document.getElementById('jurusan-table-mobile');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            if (jurusan.length === 0) {
+                container.innerHTML = '<div class="mobile-table-item" style="text-align: center; color: var(--gray);">Tidak ada data jurusan</div>';
+                return;
+            }
+
+            jurusan.forEach((j, index) => {
+                // Count alat in this jurusan
+                const alatCount = alat.filter(a => a.jurusan_id == j.id).length;
+
+                // Count kategori in this jurusan
+                const kategoriCount = kategori.filter(k => k.jurusan_id == j.id).length;
+
+                const item = document.createElement('div');
+                item.className = 'mobile-table-item';
+
+                const actions = `
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-sm btn-info" onclick="editJurusan(${j.id})" style="flex: 1;">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteJurusan(${j.id})" ${alatCount > 0 || kategoriCount > 0 ? 'disabled' : ''} style="flex: 1;">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </div>
+                `;
+
+                item.innerHTML = `
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">No</span>
+                        <span class="mobile-table-value">${index + 1}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Nama Jurusan</span>
+                        <span class="mobile-table-value">${j.nama} (${j.kode})</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Jumlah Alat</span>
+                        <span class="mobile-table-value">${alatCount}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Jumlah Kategori</span>
+                        <span class="mobile-table-value">${kategoriCount}</span>
+                    </div>
+                    ${actions}
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        function loadUsersTableMobile() {
+            const container = document.getElementById('users-table-mobile');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            if (users.length === 0) {
+                container.innerHTML = '<div class="mobile-table-item" style="text-align: center; color: var(--gray);">Tidak ada data user</div>';
+                return;
+            }
+
+            users.forEach(u => {
+                const jurusanData = jurusan.find(j => j.id == u.jurusan_id);
+                const jurusanNama = jurusanData ? jurusanData.nama : '-';
+
+                const item = document.createElement('div');
+                item.className = 'mobile-table-item';
+
+                const actions = `
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-sm btn-info" onclick="editUser(${u.id})" style="flex: 1;">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})" ${u.id === 1 ? 'disabled' : ''} style="flex: 1;">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </div>
+                `;
+
+                item.innerHTML = `
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Nama Lengkap</span>
+                        <span class="mobile-table-value">${u.full_name}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Username</span>
+                        <span class="mobile-table-value">${u.username}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Role</span>
+                        <span class="mobile-table-value">${u.role === 'superuser' ? 'Super User' : 'Guru'}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Jurusan</span>
+                        <span class="mobile-table-value">${jurusanNama}</span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Status</span>
+                        <span class="mobile-table-value"><span class="badge badge-success">Aktif</span></span>
                     </div>
                     ${actions}
                 `;
@@ -5297,7 +5827,7 @@
                     loginSchoolLogo.style.display = DEFAULT_LOGO_URL;
                 }
                 loginSchoolLogo.style.display = 'block';
-                loginSchoolLogo.onerror = function() {
+                loginSchoolLogo.onerror = function () {
                     console.error('Gagal memuat logo:', this.src);
                     this.src = DEFAULT_LOGO_URL; // Fallback ke logo default
                 };
@@ -5318,7 +5848,7 @@
                     sidebarLogo.src = DEFAULT_LOGO_URL; // <-- Default logo
                 }
                 sidebarLogo.style.display = 'block';
-                sidebarLogo.onerror = function() {
+                sidebarLogo.onerror = function () {
                     console.error('Gagal memuat logo sidebar:', this.src);
                     this.src = DEFAULT_LOGO_URL; // Fallback ke logo default
                 };
@@ -5438,23 +5968,23 @@
         }
 
         function setDefaultLogo(logoType) {
-               
-                if (logoType === 'remove') {
-                    settings.logo = null; // Akan menggunakan default
-                } else {
-                    // Default logo URLs (simplified for demo)
-                    const defaultLogos = {
-                        logo1: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiByeD0iMTIiIGZpbGw9IiM0MzYxRUUiLz4KPHBhdGggZD0iTTQ1IDM1TDU1IDM1TDU1IDY1TDQ1IDY1WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTM1IDQ1TDY1IDQ1TDY1IDU1TDM1IDU1WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+',
-                        logo2: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjNDM2MUVFIi8+CjxwYXRoIGQ9Ik01NSA0MEw2NSA0MEw2NSA2MEw1NSA2MFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0zNSA0MEw0NSA0MEw0NSA2MEwzNSA2MFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik00NSA2NUw1NSA2NUw1NSA3NUw0NSA3NVoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==',
-                        logo3: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiByeD0iMjAiIGZpbGw9IiM0MzYxRUUiLz4KPHBhdGggZD0iTTMwIDQwTDcwIDQwTDcwIDYwTDMwIDYwWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTQ1IDY1TDU1IDY1TDU1IDgwTDQ1IDgwWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'
-                    };
-            
-                    settings.logo = defaultLogos[logoType];
-                }
-            
-                applySettings();
-                alert('Logo berhasil diterapkan!');
+
+            if (logoType === 'remove') {
+                settings.logo = null; // Akan menggunakan default
+            } else {
+                // Default logo URLs (simplified for demo)
+                const defaultLogos = {
+                    logo1: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiByeD0iMTIiIGZpbGw9IiM0MzYxRUUiLz4KPHBhdGggZD0iTTQ1IDM1TDU1IDM1TDU1IDY1TDQ1IDY1WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTM1IDQ1TDY1IDQ1TDY1IDU1TDM1IDU1WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+',
+                    logo2: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjNDM2MUVFIi8+CjxwYXRoIGQ9Ik01NSA0MEw2NSA0MEw2NSA2MEw1NSA2MFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0zNSA0MEw0NSA0MEw0NSA2MEwzNSA2MFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik00NSA2NUw1NSA2NUw1NSA3NUw0NSA3NVoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==',
+                    logo3: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiByeD0iMjAiIGZpbGw9IiM0MzYxRUUiLz4KPHBhdGggZD0iTTMwIDQwTDcwIDQwTDcwIDYwTDMwIDYwWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTQ1IDY1TDU1IDY1TDU1IDgwTDQ1IDgwWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+'
+                };
+
+                settings.logo = defaultLogos[logoType];
             }
+
+            applySettings();
+            alert('Logo berhasil diterapkan!');
+        }
 
         function openUserGuide() {
             alert('Panduan penggunaan akan dibuka di tab baru.');
@@ -5696,9 +6226,91 @@
             alert('Fitur ekspor PDF untuk users');
         }
 
+        // ================== PASSWORD TOGGLE ==================
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('password-toggle-icon');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+
+        // ================== LOGO LOADING ==================
+        async function loadLogoOnInit() {
+            const DEFAULT_LOGO = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png';
+
+            try {
+                const result = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'getSettings' })
+                });
+
+                const data = await result.json();
+
+                // Use logo from settings or default logo
+                const logoUrl = (data.success && data.data.logo) ? data.data.logo : DEFAULT_LOGO;
+
+                // Update logo di login page
+                const loginLogo = document.getElementById('login-school-logo');
+                if (loginLogo) {
+                    loginLogo.src = logoUrl;
+                    loginLogo.style.display = 'block';
+                }
+
+                // Update school name
+                if (data.success && data.data.schoolName) {
+                    const loginSchoolName = document.getElementById('login-school-name');
+                    if (loginSchoolName) {
+                        loginSchoolName.textContent = data.data.schoolName;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading logo:', error);
+                // Use default logo on error
+                const loginLogo = document.getElementById('login-school-logo');
+                if (loginLogo) {
+                    loginLogo.src = DEFAULT_LOGO;
+                    loginLogo.style.display = 'block';
+                }
+            }
+        }
+
         // ================== INISIALISASI APLIKASI ==================
         document.addEventListener('DOMContentLoaded', function () {
-            initApp();
+            // Load logo on page load
+            loadLogoOnInit();
+
+            // Setup navigation
+            setupNavigation();
+
+            // Setup mobile menu
+            setupMobileMenu();
+
+            // Setup modal buttons
+            setupModalButtons();
+
+            // Check mobile view on load
+            checkMobileView();
+
+            // Check mobile view on resize
+            window.addEventListener('resize', checkMobileView);
+
+            // Setup logout button
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+            // Setup login form
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', handleLogin);
+            }
         });
     </script>
 </body>
