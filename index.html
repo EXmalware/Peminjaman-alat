@@ -5171,9 +5171,24 @@
                             </div>
                         </td>
                     `;
-                    tbody.appendChild(row);
                 });
             }
+        }
+
+        // ================== FUNGSI LOGIN ==================
+        // Setup login form event listener
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                // Assuming there's a login function to call here
+                // For example: await login(username, password);
+                // This part of the login logic is not provided in the snippet.
+                // The snippet only shows the event listener setup.
+            });
         }
 
         // ================== FUNGSI CRUD ==================
@@ -6287,6 +6302,15 @@
 
         // ================== INISIALISASI APLIKASI ==================
         document.addEventListener('DOMContentLoaded', function () {
+            // Setup login form
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    handleLogin();
+                });
+            }
+
             // Check mobile view on load
             checkMobileView();
 
