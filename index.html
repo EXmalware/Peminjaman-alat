@@ -6287,29 +6287,11 @@
 
         // ================== INISIALISASI APLIKASI ==================
         document.addEventListener('DOMContentLoaded', function () {
-            // Setup navigation
-            setupNavigation();
-
-            // Setup mobile menu
-            setupMobileMenu();
-
-            // Setup modal buttons
-            setupModalButtons();
-
             // Check mobile view on load
             checkMobileView();
 
             // Check mobile view on resize
             window.addEventListener('resize', checkMobileView);
-
-            // Setup logout button
-            document.getElementById('logout-btn').addEventListener('click', handleLogout);
-
-            // Setup login form
-            const loginForm = document.getElementById('login-form');
-            if (loginForm) {
-                loginForm.addEventListener('submit', handleLogin);
-            }
         });
     </script>
 </body>
