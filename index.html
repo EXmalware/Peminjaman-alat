@@ -1762,6 +1762,147 @@
             }
         }
 
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .toast {
+            background: white;
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideInRight 0.3s ease-out;
+            border-left: 4px solid var(--primary);
+        }
+
+        .toast.success {
+            border-left-color: #4cc9f0;
+        }
+
+        .toast.error {
+            border-left-color: #ff006e;
+        }
+
+        .toast.info {
+            border-left-color: #7209b7;
+        }
+
+        .toast.warning {
+            border-left-color: #f72585;
+        }
+
+        .toast-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .toast.success .toast-icon {
+            color: #4cc9f0;
+        }
+
+        .toast.error .toast-icon {
+            color: #ff006e;
+        }
+
+        .toast.info .toast-icon {
+            color: #7209b7;
+        }
+
+        .toast.warning .toast-icon {
+            color: #f72585;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: var(--dark);
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--gray);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .toast-close:hover {
+            background: var(--gray-light);
+            color: var(--dark);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast.hiding {
+            animation: slideOutRight 0.3s ease-out forwards;
+        }
+
+        /* Dark mode toast */
+        @media (prefers-color-scheme: dark) {
+            .toast {
+                background: #2a2a2a;
+            }
+
+            .toast-title {
+                color: #f0f0f0;
+            }
+
+            .toast-message {
+                color: #b0b0b0;
+            }
+        }
+
         /* Loading overlay */
         .loading-overlay {
             display: none;
@@ -1840,6 +1981,9 @@
 
     <!-- Main Application -->
     <div id="app" style="display: none;">
+        <!-- Toast Container -->
+        <div class="toast-container" id="toast-container"></div>
+
         <!-- Loading Overlay -->
         <div class="loading-overlay" id="loading-overlay">
             <div class="loading-spinner"></div>
@@ -2904,9 +3048,134 @@
         // Array untuk menyimpan alat yang akan dipinjam
         let alatDipinjam = [];
 
+        // OPTIMASI: Background save queue
+        let saveQueue = [];
+        let saveTimeout = null;
+        const SAVE_DELAY = 30000; // 30 detik
+
         // ================== API CONFIGURATION ==================
         const API_URL = "https://script.google.com/macros/s/AKfycbyGA7Uc9spAOVt_cDaWRR8pYosCGiWB0KH1T7zf04JO9ujUzNb3XYksr6c9dDO9vbxM/exec";
         const DEFAULT_LOGO_URL = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png";
+
+        // ================== TOAST NOTIFICATION SYSTEM ==================
+        function showToast(title, message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            toast.innerHTML = `
+                <i class="fas ${icons[type]} toast-icon"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+                <button class="toast-close" onclick="closeToast(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    closeToast(toast.querySelector('.toast-close'));
+                }, duration);
+            }
+        }
+
+        function closeToast(button) {
+            const toast = button.closest('.toast');
+            if (toast) {
+                toast.classList.add('hiding');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }
+        }
+
+        // ================== BACKGROUND SAVE SYSTEM ==================
+        function queueSave(action, data, onSuccess, onError) {
+            // Add to queue
+            saveQueue.push({ action, data, onSuccess, onError });
+
+            // Clear existing timeout
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+
+            // Set new timeout
+            saveTimeout = setTimeout(() => {
+                processSaveQueue();
+            }, SAVE_DELAY);
+
+            // Show queued notification
+            showToast('Perubahan Tertunda', 'Data akan disimpan otomatis dalam 30 detik', 'info', 3000);
+        }
+
+        async function processSaveQueue() {
+            if (saveQueue.length === 0) return;
+
+            showToast('Menyimpan Data', 'Sedang menyimpan perubahan...', 'info', 0);
+
+            const queue = [...saveQueue];
+            saveQueue = [];
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const item of queue) {
+                try {
+                    const result = await saveDataToSpreadsheet(item.action, item.data);
+                    if (result.success) {
+                        successCount++;
+                        if (item.onSuccess) item.onSuccess(result);
+                    } else {
+                        errorCount++;
+                        if (item.onError) item.onError(result);
+                    }
+                } catch (error) {
+                    errorCount++;
+                    if (item.onError) item.onError(error);
+                }
+            }
+
+            // Close loading toast
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(t => {
+                if (t.querySelector('.toast-title')?.textContent === 'Menyimpan Data') {
+                    closeToast(t.querySelector('.toast-close'));
+                }
+            });
+
+            // Show result
+            if (errorCount === 0) {
+                showToast('Berhasil!', `${successCount} perubahan berhasil disimpan`, 'success');
+            } else if (successCount === 0) {
+                showToast('Gagal!', `${errorCount} perubahan gagal disimpan`, 'error');
+            } else {
+                showToast('Sebagian Berhasil', `${successCount} berhasil, ${errorCount} gagal`, 'warning');
+            }
+        }
+
+        // Force save immediately
+        function forceSave() {
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+            processSaveQueue();
+        }
+
+        // ================== API CONFIGURATION (LEGACY) ==================
 
         // ================== FUNGSI API CALL ==================
         async function callAPI(action, data = {}) {
@@ -2946,7 +3215,8 @@
         // Fungsi untuk load data dari spreadsheet
         async function loadDataFromSpreadsheet() {
             try {
-                showLoading('Memuat data...');
+                // OPTIMASI: Show non-blocking toast
+                showToast('Memuat Data', 'Mengambil data terbaru...', 'info', 2000);
 
                 // Load semua data sekaligus
                 const [alatRes, peminjamanRes, kategoriRes, jurusanRes, usersRes, settingsRes] = await Promise.all([
@@ -2965,12 +3235,10 @@
                 if (usersRes.success) users = usersRes.data;
                 if (settingsRes.success) settings = settingsRes.data;
 
-                hideLoading();
                 return true;
             } catch (error) {
                 console.error('Error loading data:', error);
-                hideLoading();
-                alert('Gagal memuat data dari server');
+                showToast('Gagal!', 'Gagal memuat data dari server', 'error');
                 return false;
             }
         }
@@ -3115,7 +3383,8 @@
 
         async function saveDataToSpreadsheet(action, data) {
             try {
-                showLoading('Menyimpan data...');
+                // OPTIMASI: Show non-blocking toast instead of blocking loading
+                showToast('Menyimpan...', 'Sedang memproses data', 'info', 2000);
 
                 const response = await fetch(API_URL, {
                     method: 'POST',
@@ -3131,19 +3400,24 @@
                 if (!response.ok) throw new Error('Network response was not ok');
 
                 const result = await response.json();
-                hideLoading();
 
                 if (result.success) {
                     // Refresh data setelah save
                     await loadDataFromSpreadsheet();
+
+                    // OPTIMASI: Show success toast
+                    showToast('Berhasil!', 'Data berhasil disimpan', 'success');
+
                     return result;
                 } else {
                     throw new Error(result.message || 'Gagal menyimpan data');
                 }
             } catch (error) {
                 console.error('Error saving data:', error);
-                hideLoading();
-                alert('Gagal menyimpan data: ' + error.message);
+
+                // OPTIMASI: Show error toast
+                showToast('Gagal!', 'Gagal menyimpan data: ' + error.message, 'error');
+
                 return { success: false, message: error.message };
             }
         }
@@ -5281,28 +5555,29 @@
                 foto: fotoUrl
             };
 
+            // OPTIMISTIC UI: Close modal immediately
+            closeModal('alat-modal');
+
+            // Show initial toast
+            showToast('Menyimpan...', 'Data alat sedang disimpan', 'info', 2000);
+
+            // Save in background (non-blocking)
             if (id) {
                 alatData.id = parseInt(id);
-                const result = await saveDataToSpreadsheet('updateAlat', alatData);
-                if (result.success) {
-                    alert('Data alat berhasil diperbarui!');
-                    // PERBAIKAN: Auto-refresh data
-                    await loadDataFromSpreadsheet();
-                    loadAlatTable();
-                    updateDashboardStats();
-                }
+                saveDataToSpreadsheet('updateAlat', alatData).then(result => {
+                    if (result.success) {
+                        loadAlatTable();
+                        updateDashboardStats();
+                    }
+                });
             } else {
-                const result = await saveDataToSpreadsheet('saveAlat', alatData);
-                if (result.success) {
-                    alert('Data alat berhasil disimpan!');
-                    // PERBAIKAN: Auto-refresh data
-                    await loadDataFromSpreadsheet();
-                    loadAlatTable();
-                    updateDashboardStats();
-                }
+                saveDataToSpreadsheet('saveAlat', alatData).then(result => {
+                    if (result.success) {
+                        loadAlatTable();
+                        updateDashboardStats();
+                    }
+                });
             }
-
-            closeModal('alat-modal');
         }
 
         async function deleteAlat(id) {
@@ -5392,26 +5667,25 @@
                 created_by: currentUser.id
             };
 
-            const result = await saveDataToSpreadsheet('savePeminjaman', peminjamanData);
-            if (result.success) {
-                // Reset daftar alat
-                alatDipinjam = [];
+            // OPTIMISTIC UI: Close modal immediately
+            alatDipinjam = [];
+            closeModal('peminjaman-modal');
+            showToast('Menyimpan...', 'Peminjaman sedang diproses', 'info', 2000);
 
-                closeModal('peminjaman-modal');
-                alert('Peminjaman berhasil disimpan!');
+            // Save in background
+            saveDataToSpreadsheet('savePeminjaman', peminjamanData).then(result => {
+                if (result.success) {
+                    loadPeminjamanTable();
+                    loadRiwayatTable();
+                    updateDashboardStats();
 
-                // PERBAIKAN: Auto-refresh data
-                await loadDataFromSpreadsheet();
-                loadPeminjamanTable();
-                loadRiwayatTable();
-                updateDashboardStats();
-
-                // Tampilkan detail dengan barcode
-                const newPeminjaman = peminjaman.find(p => p.nomor_peminjaman === nomorPeminjaman);
-                if (newPeminjaman) {
-                    showDetailPeminjamanWithBarcode(newPeminjaman.id);
+                    // Tampilkan detail dengan barcode
+                    const newPeminjaman = peminjaman.find(p => p.nomor_peminjaman === nomorPeminjaman);
+                    if (newPeminjaman) {
+                        showDetailPeminjamanWithBarcode(newPeminjaman.id);
+                    }
                 }
-            }
+            });
         }
 
         function showManualReturnModal() {
