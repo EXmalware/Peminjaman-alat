@@ -15,6 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary: #4361ee;
@@ -23,23 +24,103 @@
             --success: #4cc9f0;
             --warning: #f72585;
             --danger: #ff006e;
-            --dark: #212529;
-            --light: #f8f9fa;
-            --gray: #6c757d;
-            --gray-light: #e9ecef;
-            --card-bg: rgba(255, 255, 255, 0.95);
-            --sidebar-bg: linear-gradient(180deg, #2d2d69 0%, #4361ee 100%);
+            --dark: #f8f9fa;
+            --light: #1a1a1a;
+            --gray: #adb5bd;
+            --gray-light: #2d2d2d;
+            --card-bg: rgba(33, 37, 41, 0.95);
+            --sidebar-bg: linear-gradient(180deg, #0f0f2d 0%, #1a1a3d 100%);
             --gradient-primary: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
             --gradient-success: linear-gradient(135deg, #4cc9f0 0%, #4895ef 100%);
             --gradient-warning: linear-gradient(135deg, #f72585 0%, #b5179e 100%);
             --gradient-dark: linear-gradient(135deg, #212529 0%, #343a40 100%);
             --gradient-info: linear-gradient(135deg, #7209b7 0%, #560bad 100%);
             --gradient-danger: linear-gradient(135deg, #ff006e 0%, #fb5607 100%);
-            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.12);
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.5);
             --radius: 16px;
             --radius-sm: 8px;
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --body-bg: linear-gradient(135deg, #121212 0%, #1a1a1a 100%);
+        }
+
+        :root[data-theme="light"] {
+            --dark: #212529;
+            --light: #f8f9fa;
+            --gray: #6c757d;
+            --gray-light: #e9ecef;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --sidebar-bg: linear-gradient(180deg, #2d2d69 0%, #4361ee 100%);
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.12);
+            --body-bg: linear-gradient(135deg, #f5f7ff 0%, #f0f2ff 100%);
+        }
+
+        [data-theme="light"] body {
+            background: var(--body-bg);
+            color: var(--dark);
+        }
+
+        .login-card,
+        .card,
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="light"] .login-card,
+        [data-theme="light"] .card,
+        [data-theme="light"] .modal-content {
+            border-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .form-control {
+            background: #2d2d2d;
+            border: 1px solid #444;
+            color: white;
+        }
+
+        [data-theme="light"] .form-control {
+            background: white;
+            border-color: var(--gray-light);
+            color: var(--dark);
+        }
+
+        .table th {
+            background: #2d2d2d;
+            color: #eee;
+        }
+
+        [data-theme="light"] .table th {
+            background: #f1f3f9;
+            color: var(--dark);
+        }
+
+        /* ... existing ... */
+        .school-name,
+        .stat-label,
+        .page-header p {
+            color: #ccc;
+        }
+
+        [data-theme="light"] .school-name,
+        [data-theme="light"] .stat-label,
+        [data-theme="light"] .page-header p {
+            color: var(--gray);
+        }
+
+        .nav-link:not(.active) {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .btn-outline {
+            border: 1px solid #444;
+            color: #ccc;
+        }
+
+        [data-theme="light"] .btn-outline {
+            border-color: var(--gray-light);
+            color: var(--gray);
         }
 
         * {
@@ -50,7 +131,7 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f5f7ff 0%, #f0f2ff 100%);
+            background: var(--body-bg);
             color: var(--dark);
             line-height: 1.6;
             min-height: 100vh;
@@ -356,10 +437,11 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 25px;
-            background: white;
+            background: var(--card-bg);
             padding: 18px 20px;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             animation: slideIn 0.5s ease-out;
             flex-wrap: wrap;
             gap: 15px;
@@ -2006,10 +2088,30 @@
             </div>
 
             <ul class="sidebar-menu">
+                <li class="sidebar-profile"
+                    style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="user-avatar" id="user-avatar-sidebar" onclick="showEditProfileModal()"
+                            style="width: 45px; height: 45px; background: var(--gradient-success); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; cursor: pointer; position: relative; overflow: hidden;"
+                            title="Klik untuk Edit Profil">
+                            <span id="user-initials-sidebar">A</span>
+                            <img id="user-photo-sidebar" src=""
+                                style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        </div>
+                        <div style="overflow: hidden;">
+                            <div id="user-fullname-sidebar"
+                                style="font-weight: 600; font-size: 14px; white-space: nowrap; text-overflow: ellipsis;">
+                                Admin</div>
+                            <div id="user-role-sidebar" style="font-size: 11px; color: rgba(255,255,255,0.6);">Super
+                                User</div>
+                        </div>
+                    </div>
+                </li>
                 <li><a href="#" class="nav-link active" data-page="dashboard">
                         <i class="fas fa-home"></i>
                         <span>Dashboard</span>
                     </a></li>
+                <!-- ... existing items ... -->
                 <li><a href="#" class="nav-link" data-page="alat">
                         <i class="fas fa-toolbox"></i>
                         <span>Manajemen Alat</span>
@@ -2026,12 +2128,6 @@
                         <i class="fas fa-history"></i>
                         <span>Riwayat</span>
                     </a></li>
-                <!-- Kategori bisa diakses semua user -->
-                <li><a href="#" class="nav-link" data-page="kategori">
-                        <i class="fas fa-tags"></i>
-                        <span>Kategori</span>
-                    </a></li>
-                <!-- Menu berikut hanya untuk Super User -->
                 <li><a href="#" class="nav-link superuser-only" data-page="jurusan" style="display: none;">
                         <i class="fas fa-graduation-cap"></i>
                         <span>Jurusan</span>
@@ -2044,7 +2140,31 @@
                         <i class="fas fa-cog"></i>
                         <span>Pengaturan</span>
                     </a></li>
+                <li style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                    <a href="#" class="nav-link" onclick="toggleTheme(); return false;">
+                        <i id="theme-icon" class="fas fa-moon"></i>
+                        <span id="theme-text">Mode Terang</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="showUpdatesModal(); return false;">
+                        <i class="fas fa-bullhorn" style="color: #4cc9f0;"></i>
+                        <span>Ada Apa Baru?</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" id="logout-btn-sidebar" onclick="handleLogout(); return false;"
+                        style="color: var(--warning);">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Keluar Sistem</span>
+                    </a>
+                </li>
             </ul>
+            <div class="sidebar-footer"
+                style="padding: 15px 20px; font-size: 10px; color: rgba(255,255,255,0.4); border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                <div>PinjamAlat v1.2</div>
+                <div>Created by <strong>David Faizal, S.Kom.</strong></div>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -2061,17 +2181,8 @@
                     </div>
                 </div>
 
-                <div class="user-menu">
-                    <div class="user-info">
-                        <div class="user-avatar" id="user-avatar">U</div>
-                        <div class="user-details">
-                            <h3 id="user-fullname">User Name</h3>
-                            <span id="user-role">Role</span>
-                        </div>
-                    </div>
-                    <button id="logout-btn" class="btn btn-outline btn-sm">
-                        <i class="fas fa-sign-out-alt"></i> Keluar
-                    </button>
+                <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+                    <!-- Theme and Logout moved to sidebar -->
                 </div>
             </div>
 
@@ -2179,6 +2290,12 @@
                                     <i class="fas fa-file-pdf"></i> PDF
                                 </button>
                             </div>
+                            <button class="btn btn-info" id="kelola-kategori-btn" onclick="showPage('kategori')">
+                                <i class="fas fa-tags"></i> Kelola Kategori
+                            </button>
+                            <button class="btn btn-success" onclick="showImportModal()">
+                                <i class="fas fa-file-import"></i> Impor Alat
+                            </button>
                             <button class="btn btn-primary" id="tambah-alat-btn">
                                 <i class="fas fa-plus"></i> Tambah Alat
                             </button>
@@ -2217,7 +2334,16 @@
                             </select>
                         </div>
                         <div class="filter-group">
-                            <label>Search</label>
+                            <label>Tampilkan</label>
+                            <select id="filter-limit" class="form-control" onchange="filterAlatTable()">
+                                <option value="10">10</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="1000">1000</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Cari</label>
                             <input type="text" id="search-alat" class="form-control" placeholder="Cari alat..."
                                 onkeyup="filterAlatTable()">
                         </div>
@@ -2250,11 +2376,23 @@
                         <!-- Data akan diisi oleh JavaScript -->
                     </div>
 
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 10px;">
-                        <div style="font-size: 13px; color: var(--gray);">
-                            <span id="alat-count">0</span> alat ditemukan
+                    <div id="alat-pagination-container"
+                        style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 15px;">
+                        <div id="alat-showing-info" style="font-size: 13px; color: var(--gray);">
+                            Showing 0 to 0 of 0 data
                         </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="font-size: 13px; color: var(--gray); margin-right: 10px;">
+                                Total: <span id="alat-count" style="font-weight: 600; color: var(--primary);">0</span>
+                                item
+                            </div>
+                            <div id="alat-pagination" class="pagination-buttons" style="display: flex; gap: 5px;">
+                                <!-- Tombol pagination akan diisi JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
                         <div class="export-options">
                             <button class="btn btn-success btn-sm" onclick="exportAlatToExcel()">
                                 <i class="fas fa-file-excel"></i> Export Excel
@@ -2400,6 +2538,9 @@
                                     <i class="fas fa-file-pdf"></i> PDF
                                 </button>
                             </div>
+                            <button class="btn btn-outline" onclick="showPage('alat')">
+                                <i class="fas fa-arrow-left"></i> Kembali ke Alat
+                            </button>
                             <button class="btn btn-primary" id="tambah-kategori-btn">
                                 <i class="fas fa-plus"></i> Tambah Kategori
                             </button>
@@ -2558,7 +2699,8 @@
                         <!-- Current Logo Preview -->
                         <div class="logo-preview-container">
                             <div style="text-align: center; margin-bottom: 20px;">
-                                <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--gray);">Logo Saat Ini</h4>
+                                <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--gray);">Logo Saat Ini
+                                </h4>
                                 <img id="current-logo-preview" class="logo-preview" src="" alt="Logo Sekolah">
                                 <div id="current-logo-name"
                                     style="margin-top: 10px; font-size: 13px; color: var(--gray);"></div>
@@ -2584,7 +2726,8 @@
                             <input type="url" id="logo-url" class="form-control"
                                 placeholder="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png"
                                 onchange="previewLogoUrl(this.value)">
-                            <small style="color: var(--gray); font-size: 12px;">Masukkan URL gambar langsung (akhiran
+                            <small style="color: var(--gray); font-size: 12px;">Masukkan URL gambar langsung
+                                (akhiran
                                 .jpg, .png, .svg)</small>
                         </div>
 
@@ -2713,11 +2856,20 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Foto Alat (Opsional)</label>
-                        <input type="file" id="alat-foto" class="form-control" accept="image/*"
-                            onchange="previewFotoAlat(event)">
-                        <div id="foto-preview-container" style="display: none; margin-top: 10px;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="file" id="alat-foto" class="form-control" accept="image/*"
+                                onchange="previewFotoAlat(event)" style="flex: 1;">
+                            <button type="button" class="btn btn-info" onclick="openCameraForAlat()">
+                                <i class="fas fa-camera"></i> Ambil Foto
+                            </button>
+                        </div>
+                        <div id="foto-preview-container" style="display: none; margin-top: 10px; text-align: center;">
                             <img id="foto-preview" src="" alt="Preview Foto"
-                                style="max-width: 200px; border-radius: 8px;">
+                                style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid var(--gray-light);">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeFoto()"
+                                style="margin-top: 5px;">
+                                <i class="fas fa-times"></i> Hapus Foto
+                            </button>
                         </div>
                     </div>
                     <div class="form-group">
@@ -2748,6 +2900,7 @@
             </div>
             <div class="modal-body">
                 <form id="form-peminjaman">
+                    <input type="hidden" id="peminjaman-id">
                     <div class="form-group">
                         <label class="form-label">Nama Peminjam</label>
                         <input type="text" id="peminjam-nama" class="form-control" required>
@@ -2800,7 +2953,7 @@
                             Batal
                         </button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Simpan Peminjaman
+                            <i class="fas fa-save"></i> <span id="peminjaman-save-btn-text">Simpan Peminjaman</span>
                         </button>
                     </div>
                 </form>
@@ -2981,6 +3134,7 @@
                         <select id="form-user-role" class="form-control" required>
                             <option value="">Pilih Role</option>
                             <option value="guru">Guru</option>
+                            <option value="toolman">ToolMan</option>
                             <option value="superuser">Super User</option>
                         </select>
                     </div>
@@ -2999,6 +3153,197 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk Kamera (untuk ambil foto alat) -->
+    <!-- Modal untuk What's New Updates -->
+    <div id="updates-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Apa yang Baru? <span class="badge badge-success">v1.2</span></h3>
+                <button class="modal-close" onclick="closeModal('updates-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="updates-list">
+                    <div class="update-item"
+                        style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <h4 style="color: var(--primary);"><i class="fas fa-qrcode"></i> Label QR Code & Foto</h4>
+                        <p>Cetak label QR untuk setiap alat dan ambil foto alat langsung lewat kamera.</p>
+                    </div>
+                    <div class="update-item"
+                        style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <h4 style="color: var(--info);"><i class="fas fa-user-shield"></i> Role ToolMan & Profil Baru
+                        </h4>
+                        <p>Role baru <b>ToolMan</b> telah hadir. Info profil & logout kini lebih rapi di sidebar.</p>
+                    </div>
+                    <div class="update-item"
+                        style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <h4 style="color: var(--warning);"><i class="fas fa-moon"></i> Mode Gelap & Terang</h4>
+                        <p>Pilih kenyamanan visual Anda dengan toggle tema di bagian bawah sidebar.</p>
+                    </div>
+                    <div class="update-item">
+                        <h4 style="color: var(--success);"><i class="fas fa-file-import"></i> Impor Massal Excel</h4>
+                        <p>Tambah ratusan data alat sekaligus tanpa ribet melalui file Excel (.xlsx).</p>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="closeModal('updates-modal')">Siap, Terima Kasih!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk Edit Profil -->
+    <div id="edit-profile-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Edit Profil Saya</h3>
+                <button class="modal-close" onclick="closeModal('edit-profile-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="form-edit-profile">
+                    <div class="form-group" style="text-align: center; margin-bottom: 20px;">
+                        <div id="edit-profile-avatar-preview"
+                            style="width: 80px; height: 80px; background: var(--gradient-success); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 32px; color: white; margin: 0 auto 10px; cursor: pointer; position: relative; overflow: hidden;"
+                            onclick="document.getElementById('edit-profile-photo').click()">
+                            <span id="edit-profile-initials">A</span>
+                            <img id="edit-profile-photo-preview" src=""
+                                style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                            <div
+                                style="position: absolute; bottom: 0; background: rgba(0,0,0,0.5); width: 100%; font-size: 10px; padding: 2px 0;">
+                                Pilih Foto</div>
+                        </div>
+                        <input type="file" id="edit-profile-photo" accept="image/*" style="display: none;"
+                            onchange="previewProfilePhoto(event)">
+                        <button type="button" id="btn-delete-avatar" class="btn btn-sm btn-outline-danger"
+                            style="display: none; margin: 0 auto; font-size: 11px;" onclick="clearProfilePhoto()">
+                            <i class="fas fa-trash-alt"></i> Hapus Foto
+                        </button>
+                        <input type="hidden" id="edit-profile-delete-photo-flag" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nama Lengkap</label>
+                        <input type="text" id="edit-profile-nama" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password Saat Ini</label>
+                        <div style="position: relative;">
+                            <input type="password" id="edit-profile-current-password" class="form-control"
+                                placeholder="Konfirmasi password lama">
+                            <i class="fas fa-eye"
+                                style="position: absolute; right: 10px; top: 12px; cursor: pointer; color: var(--gray);"
+                                onclick="toggleProfilePassword('edit-profile-current-password', this)"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password Baru (Opsional)</label>
+                        <div style="position: relative;">
+                            <input type="password" id="edit-profile-new-password" class="form-control"
+                                placeholder="Kosongkan jika tidak ingin mengubah">
+                            <i class="fas fa-eye"
+                                style="position: absolute; right: 10px; top: 12px; cursor: pointer; color: var(--gray);"
+                                onclick="toggleProfilePassword('edit-profile-new-password', this)"></i>
+                        </div>
+                    </div>
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button type="button" class="btn btn-outline"
+                            onclick="closeModal('edit-profile-modal')">Batal</button>
+                        <button type="button" class="btn btn-primary" onclick="updateUserProfile()">Simpan
+                            Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk Import Excel -->
+    <div id="import-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Impor Data Alat</h3>
+                <button class="modal-close" onclick="closeModal('import-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="background: var(--gray-light); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="font-size: 13px;"><strong>Instruksi:</strong></p>
+                    <ol style="font-size: 12px; margin-top: 5px; padding-left: 20px;">
+                        <li>Urutan kolom: Kode Seri, Nama Alat, ID Kategori, Jml Total, ID Jurusan, Keterangan.</li>
+                        <li>Pastikan ID Kategori dan ID Jurusan sesuai dengan database yang ada.</li>
+                    </ol>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pilih File Excel (.xlsx)</label>
+                    <input type="file" id="import-file" class="form-control" accept=".xlsx, .xls">
+                </div>
+                <div id="import-preview"
+                    style="max-height: 200px; overflow-y: auto; margin-top: 15px; font-size: 11px;"></div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('import-modal')">Batal</button>
+                    <button type="button" class="btn btn-primary" onclick="handleImportExcel()">
+                        <i class="fas fa-upload"></i> Proses Impor
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk QR Code Alat -->
+    <div id="qr-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Label QR Alat</h3>
+                <button class="modal-close" onclick="closeModal('qr-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div id="qr-label-container"
+                    style="background: white; padding: 20px; border: 1px solid #ccc; border-radius: 5px; display: inline-block;">
+                    <h4 id="qr-school-name" style="margin-bottom: 10px; font-size: 14px;"></h4>
+                    <div id="qrcode" style="margin-bottom: 10px; display: flex; justify-content: center;"></div>
+                    <p id="qr-alat-name" style="font-weight: bold; margin-bottom: 5px;"></p>
+                    <p id="qr-alat-code" style="font-size: 12px; font-family: monospace;"></p>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn btn-primary" onclick="printQRLabel()">
+                        <i class="fas fa-print"></i> Cetak Label
+                    </button>
+                    <button class="btn btn-outline" onclick="closeModal('qr-modal')">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="camera-alat-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ambil Foto Alat</h3>
+                <button class="modal-close" onclick="closeAlatCamera()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="camera-alat-container" style="text-align: center; position: relative;">
+                    <video id="camera-alat-preview" width="100%" autoplay playsinline
+                        style="border-radius: var(--radius-sm); background: #000;"></video>
+                    <canvas id="camera-alat-canvas" style="display: none;"></canvas>
+                    <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+                        <button class="btn btn-primary" id="capture-btn" onclick="takePhoto()">
+                            <i class="fas fa-camera"></i> Ambil Gambar
+                        </button>
+                        <button class="btn btn-outline" onclick="closeAlatCamera()">
+                            Batal
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3044,6 +3389,7 @@
         let jurusan = [];
         let settings = {};
         let stream = null; // Untuk kamera
+        let currentPageAlat = 1;
 
         // Array untuk menyimpan alat yang akan dipinjam
         let alatDipinjam = [];
@@ -3752,7 +4098,85 @@
             }, 500);
         }
 
-        // ================== FUNGSI BANTUAN ==================
+        function getDriveThumbnail(url) {
+            if (!url) return '';
+            if (url.includes('drive.google.com/uc?id=')) {
+                const idMatch = url.match(/id=([^&]+)/);
+                if (idMatch && idMatch[1]) {
+                    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1600`;
+                }
+            }
+            if (url.includes('drive.google.com/thumbnail?id=')) {
+                if (!url.includes('sz=')) {
+                    return url + '&sz=w1600';
+                }
+                return url.replace(/sz=[^&]+/, 'sz=w1600');
+            }
+            return url;
+        }
+
+        function renderAlatPagination(totalData, limit) {
+            const paginationContainer = document.getElementById('alat-pagination');
+            if (!paginationContainer) return;
+
+            paginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(totalData / limit);
+            if (totalPages <= 1) return;
+
+            // Prev button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = `btn btn-sm ${currentPageAlat === 1 ? 'btn-outline' : 'btn-primary'}`;
+            prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            prevBtn.disabled = currentPageAlat === 1;
+            prevBtn.onclick = () => {
+                if (currentPageAlat > 1) {
+                    currentPageAlat--;
+                    filterAlatTable(false); // Pass false to not reset page
+                }
+            };
+            paginationContainer.appendChild(prevBtn);
+
+            // Limited page buttons (show around current page)
+            let startPage = Math.max(1, currentPageAlat - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = `btn btn-sm ${i === currentPageAlat ? 'btn-primary' : 'btn-outline'}`;
+                pageBtn.textContent = i;
+                pageBtn.onclick = () => {
+                    currentPageAlat = i;
+                    filterAlatTable(false);
+                };
+                paginationContainer.appendChild(pageBtn);
+            }
+
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = `btn btn-sm ${currentPageAlat === totalPages ? 'btn-outline' : 'btn-primary'}`;
+            nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            nextBtn.disabled = currentPageAlat === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPageAlat < totalPages) {
+                    currentPageAlat++;
+                    filterAlatTable(false);
+                }
+            };
+            paginationContainer.appendChild(nextBtn);
+        }
+
+        function formatRole(role) {
+            switch (role) {
+                case 'superuser': return 'Super User';
+                case 'toolman': return 'ToolMan';
+                case 'peminjam': return 'Peminjam';
+                default: return 'Guru';
+            }
+        }
+
         function formatDate(dateString) {
             if (!dateString) return '-';
             const date = new Date(dateString);
@@ -3848,6 +4272,9 @@
             // Setup modal buttons
             setupModalButtons();
 
+            // Initialize theme
+            initTheme();
+
             // Check if mobile
             checkMobileView();
 
@@ -3871,15 +4298,16 @@
         }
 
         async function autoLogin() {
-            // Update UI dengan info user
-            document.getElementById('user-fullname').textContent = currentUser.full_name;
-            document.getElementById('user-role').textContent = currentUser.role === 'superuser' ? 'Super User' : 'Guru';
-            document.getElementById('user-avatar').textContent = currentUser.full_name.charAt(0).toUpperCase();
+            if (!currentUser) return;
 
-            // Tampilkan menu superuser jika perlu
-            document.querySelectorAll('.superuser-only').forEach(el => {
-                el.style.display = currentUser.role === 'superuser' ? 'flex' : 'none';
-            });
+            // Update UI dengan info profil (Avatar, Nama, Inisial)
+            updateSidebarProfile();
+
+            // Sesuai korelasi role/page
+            updateSidebarVisibility();
+
+            // Load data dari spreadsheet
+            await loadDataFromSpreadsheet();
 
             // Load data dari spreadsheet
             await loadDataFromSpreadsheet();
@@ -3939,14 +4367,7 @@
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
                     // Update UI dengan info user
-                    document.getElementById('user-fullname').textContent = currentUser.full_name;
-                    document.getElementById('user-role').textContent = currentUser.role === 'superuser' ? 'Super User' : 'Guru';
-                    document.getElementById('user-avatar').textContent = currentUser.full_name.charAt(0).toUpperCase();
-
-                    // Tampilkan menu superuser jika perlu
-                    document.querySelectorAll('.superuser-only').forEach(el => {
-                        el.style.display = currentUser.role === 'superuser' ? 'flex' : 'none';
-                    });
+                    await autoLogin();
 
                     // Load data dari spreadsheet
                     await loadDataFromSpreadsheet();
@@ -3969,6 +4390,16 @@
 
                     // Show dashboard
                     showPage('dashboard');
+
+                    // Update sidebar visibility
+                    updateSidebarVisibility();
+
+                    // Show "What's New" popup for first time login in this version
+                    const lastUpdateSeen = localStorage.getItem('lastUpdateSeen');
+                    if (lastUpdateSeen !== '1.2') {
+                        setTimeout(() => showUpdatesModal(), 1000);
+                        localStorage.setItem('lastUpdateSeen', '1.2');
+                    }
                 } else {
                     alert('Username atau password salah!');
                 }
@@ -3994,6 +4425,53 @@
             // Reset form login
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
+        }
+
+        function updateSidebarVisibility() {
+            if (!currentUser) return;
+
+            const role = currentUser.role;
+            const isSuperuser = role === 'superuser';
+            const isGuru = role === 'guru';
+            const isToolman = role === 'toolman';
+            const isPeminjam = role === 'peminjam';
+
+            // 1. Handle Navigation Links (Sidebar)
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const page = link.getAttribute('data-page');
+                if (!page) return;
+
+                // Reset visibility
+                link.parentElement.style.display = 'block';
+                link.style.display = 'flex'; // Reset link style in case it had inline display: none
+
+                if (isPeminjam) {
+                    const restricted = ['alat', 'pengembalian', 'kategori', 'jurusan', 'users', 'peminjaman'];
+                    if (restricted.includes(page)) link.parentElement.style.display = 'none';
+                } else if (isToolman) {
+                    const restricted = ['jurusan', 'users', 'settings'];
+                    if (restricted.includes(page)) link.parentElement.style.display = 'none';
+                } else if (isGuru) {
+                    // Guru can access almost everything except Jurusan and Settings
+                    const restricted = ['jurusan', 'settings'];
+                    if (restricted.includes(page)) link.parentElement.style.display = 'none';
+                }
+            });
+
+            // 2. Handle specific action elements (Buttons, Section, etc)
+            document.querySelectorAll('.superuser-only').forEach(el => {
+                const page = el.getAttribute('data-page');
+                // Special case for Guru who needs access to 'users' and page-related management
+                if (isGuru && (page === 'users' || page === 'kategori' || page === 'alat' || page === 'peminjaman')) {
+                    el.style.display = 'flex';
+                } else {
+                    el.style.display = isSuperuser ? 'flex' : 'none';
+                }
+            });
+
+            document.querySelectorAll('.toolman-only').forEach(el => {
+                el.style.display = (isSuperuser || isToolman || isGuru) ? 'flex' : 'none';
+            });
         }
 
         function updateDashboardStats() {
@@ -4029,6 +4507,25 @@
                 totalKategori = kategori.filter(k => k.jurusan_id == currentUser.jurusan_id).length;
             }
             document.getElementById('total-kategori').textContent = totalKategori;
+
+            // Performa filtering data dashboard berdasarkan role
+            if (currentUser && currentUser.role === 'peminjam') {
+                const alatTersediaCard = document.getElementById('alat-tersedia')?.parentElement?.parentElement;
+                const totalKategoriCard = document.getElementById('total-kategori')?.parentElement?.parentElement;
+
+                if (alatTersediaCard) alatTersediaCard.style.display = 'none';
+                if (totalKategoriCard) totalKategoriCard.style.display = 'none';
+
+                const loanLabel = document.querySelector('#total-peminjaman')?.previousElementSibling;
+                if (loanLabel) loanLabel.textContent = 'Alat Dipinjam Saya';
+            } else if (currentUser && currentUser.role === 'toolman') {
+                // Toolman bisa lihat stats umum
+                const loanLabel = document.querySelector('#total-peminjaman')?.previousElementSibling;
+                if (loanLabel) loanLabel.textContent = 'Peminjaman Aktif';
+            } else {
+                document.getElementById('alat-tersedia').parentElement.parentElement.style.display = 'block';
+                document.getElementById('total-kategori').parentElement.parentElement.style.display = 'block';
+            }
         }
 
         // ================== FUNGSI NAVIGASI ==================
@@ -4063,6 +4560,16 @@
             const activeLink = document.querySelector(`.nav-link[data-page="${pageName}"]`);
             if (activeLink) {
                 activeLink.classList.add('active');
+            }
+
+            // Role-based Access Control
+            if (currentUser && currentUser.role === 'peminjam') {
+                const allowedPages = ['dashboard', 'riwayat', 'settings'];
+                if (!allowedPages.includes(pageName)) {
+                    showToast('Akses Ditolak', 'Halaman ini hanya untuk Guru/Admin', 'warning');
+                    showPage('dashboard');
+                    return;
+                }
             }
 
             // Update page title
@@ -4314,6 +4821,9 @@
                         <button class="btn btn-sm btn-info" onclick="showAlatModal(${a.id})" style="flex: 1;">
                             <i class="fas fa-edit"></i> Edit
                         </button>
+                        <button class="btn btn-sm btn-primary" onclick="showQRModal(${a.id})" style="flex: 1;">
+                            <i class="fas fa-qrcode"></i> QR
+                        </button>
                         <button class="btn btn-sm btn-danger" onclick="deleteAlat(${a.id})" ${a.jumlah_tersedia < a.jumlah_total ? 'disabled' : ''} style="flex: 1;">
                             <i class="fas fa-trash"></i> Hapus
                         </button>
@@ -4344,6 +4854,15 @@
                     <div class="mobile-table-row">
                         <span class="mobile-table-label">Kondisi</span>
                         <span class="mobile-table-value"><span class="badge ${getKondisiBadgeClass(a.kondisi)}">${a.kondisi}</span></span>
+                    </div>
+                    <div class="mobile-table-row">
+                        <span class="mobile-table-label">Foto Alat</span>
+                        <span class="mobile-table-value">
+                            ${a.foto ?
+                        `<img src="${getDriveThumbnail(a.foto)}" class="alat-thumbnail" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer;" alt="${a.nama}" onclick="window.open('${a.foto}', '_blank')">` :
+                        '-'
+                    }
+                        </span>
                     </div>
                     ${actions}
                 `;
@@ -4872,7 +5391,7 @@
 
                     // Show foto preview if exists
                     if (alatData.foto) {
-                        document.getElementById('foto-preview').src = alatData.foto;
+                        document.getElementById('foto-preview').src = getDriveThumbnail(alatData.foto);
                         document.getElementById('foto-preview-container').style.display = 'block';
                     }
                 }
@@ -4918,6 +5437,13 @@
                 jurusanSelect.appendChild(option);
             });
 
+            if (currentUser && currentUser.role === 'guru') {
+                jurusanSelect.value = currentUser.jurusan_id;
+                jurusanSelect.disabled = true;
+            } else {
+                jurusanSelect.disabled = false;
+            }
+
             showModal('alat-modal');
         }
 
@@ -4949,6 +5475,65 @@
             reader.readAsDataURL(file);
         }
 
+        let alatCameraStream = null;
+
+        async function openCameraForAlat() {
+            const modal = document.getElementById('camera-alat-modal');
+            const video = document.getElementById('camera-alat-preview');
+
+            try {
+                alatCameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                video.srcObject = alatCameraStream;
+                showModal('camera-alat-modal');
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                alert("Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.");
+            }
+        }
+
+        function takePhoto() {
+            const video = document.getElementById('camera-alat-preview');
+            const canvas = document.getElementById('camera-alat-canvas');
+            const context = canvas.getContext('2d');
+
+            // Set canvas size to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Draw video frame to canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to base64 with quality optimization
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            // Set preview
+            const preview = document.getElementById('foto-preview');
+            const container = document.getElementById('foto-preview-container');
+            preview.src = imageData;
+            container.style.display = 'block';
+
+            // Clear file input
+            document.getElementById('alat-foto').value = '';
+
+            closeAlatCamera();
+        }
+
+        function closeAlatCamera() {
+            if (alatCameraStream) {
+                alatCameraStream.getTracks().forEach(track => track.stop());
+                alatCameraStream = null;
+            }
+            closeModal('camera-alat-modal');
+        }
+
+        function removeFoto() {
+            document.getElementById('foto-preview').src = '';
+            document.getElementById('foto-preview-container').style.display = 'none';
+            document.getElementById('alat-foto').value = '';
+        }
+
         function showPeminjamanModal() {
             // Reset daftar alat yang dipinjam
             alatDipinjam = [];
@@ -4976,6 +5561,14 @@
             const nextWeek = new Date(today);
             nextWeek.setDate(today.getDate() + 7);
             document.getElementById('peminjaman-tanggal-kembali').value = nextWeek.toISOString().split('T')[0];
+
+            if (currentUser && currentUser.role === 'guru') {
+                jurusanSelect.value = currentUser.jurusan_id;
+                jurusanSelect.disabled = true;
+                updateAlatDropdown();
+            } else {
+                jurusanSelect.disabled = false;
+            }
 
             showModal('peminjaman-modal');
         }
@@ -5137,6 +5730,7 @@
         }
 
         function loadAlatTable() {
+            currentPageAlat = 1; // Reset to page 1 on fresh load
             // Filter alat by user's jurusan if not superuser
             let filteredAlat = alat;
             if (currentUser && currentUser.role !== 'superuser' && currentUser.jurusan_id) {
@@ -5146,12 +5740,28 @@
             // Update count
             document.getElementById('alat-count').textContent = filteredAlat.length;
 
+            // Apply limit
+            const limitVal = parseInt(document.getElementById('filter-limit')?.value || '10');
+            const totalData = filteredAlat.length;
+            const startIndex = (currentPageAlat - 1) * limitVal;
+            const endIndex = Math.min(startIndex + limitVal, totalData);
+
+            // Update showing info
+            const showingInfo = document.getElementById('alat-showing-info');
+            if (showingInfo) {
+                showingInfo.textContent = totalData > 0 ? `Showing ${startIndex + 1} to ${endIndex} of ${totalData} data` : 'Showing 0 to 0 of 0 data';
+            }
+
+            renderAlatPagination(totalData, limitVal);
+
+            const displayAlat = filteredAlat.slice(startIndex, endIndex);
+
             // Load desktop table
             const tbody = document.querySelector('#alat-table tbody');
             if (tbody) {
                 tbody.innerHTML = '';
 
-                filteredAlat.forEach(a => {
+                displayAlat.forEach(a => {
                     const kategoriData = kategori.find(k => k.id == a.kategori_id);
                     const kategoriNama = kategoriData ? kategoriData.nama : '-';
 
@@ -5162,7 +5772,7 @@
                     row.innerHTML = `
                         <td>
                             ${a.foto ?
-                            `<img src="${a.foto}" class="alat-thumbnail" alt="${a.nama}">` :
+                            `<img src="${getDriveThumbnail(a.foto)}" class="alat-thumbnail" alt="${a.nama}" onclick="window.open('${a.foto}', '_blank')" style="cursor: pointer;">` :
                             `<div class="alat-thumbnail" style="background: var(--gradient-primary); color: white; display: flex; align-items: center; justify-content: center;">
                                     <i class="fas fa-tools"></i>
                                 </div>`
@@ -5177,10 +5787,13 @@
                         <td><span class="badge ${getKondisiBadgeClass(a.kondisi)}">${a.kondisi}</span></td>
                         <td>
                             <div class="action-buttons">
-                                <button class="btn btn-sm btn-info" onclick="showAlatModal(${a.id})">
+                                <button class="btn btn-sm btn-info" onclick="showAlatModal(${a.id})" title="Edit Alat">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteAlat(${a.id})" ${a.jumlah_tersedia < a.jumlah_total ? 'disabled' : ''}>
+                                <button class="btn btn-sm btn-primary" onclick="showQRModal(${a.id})" title="Cetak QR">
+                                    <i class="fas fa-qrcode"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteAlat(${a.id})" ${a.jumlah_tersedia < a.jumlah_total ? 'disabled' : ''} title="Hapus Alat">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -5253,14 +5866,12 @@
                                 <button class="btn btn-sm btn-info" onclick="showDetailPeminjamanWithBarcode(${p.id})">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="btn btn-sm btn-warning" onclick="printThermalSingle(${p.id})" title="Cetak Thermal">
-                                    <i class="fas fa-print"></i>
+                                <button class="btn btn-sm btn-warning" onclick="showEditPeminjamanModal(${p.id})">
+                                    <i class="fas fa-edit"></i>
                                 </button>
-                                ${p.status === 'Dipinjam' ? `
-                                    <button class="btn btn-sm btn-success" onclick="processPengembalian(${p.id})">
-                                        <i class="fas fa-check"></i> Kembalikan
-                                    </button>
-                                ` : ''}
+                                <button class="btn btn-sm btn-success" onclick="processPengembalian(${p.id})">
+                                    <i class="fas fa-check"></i> Kembalikan
+                                </button>
                             </div>
                         </td>
                     `;
@@ -5365,8 +5976,8 @@
                                 <button class="btn btn-sm btn-info" onclick="showDetailPeminjamanWithBarcode(${p.id})">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="btn btn-sm btn-warning" onclick="printThermalSingle(${p.id})" title="Cetak Thermal">
-                                    <i class="fas fa-print"></i>
+                                <button class="btn btn-sm btn-danger" onclick="deleteRiwayat(${p.id})">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </td>
@@ -5457,7 +6068,13 @@
             if (tbody) {
                 tbody.innerHTML = '';
 
-                users.forEach(u => {
+                let filteredUsers = users;
+                if (currentUser && currentUser.role === 'guru') {
+                    // Guru hanya melihat toolman di jurusannya sendiri
+                    filteredUsers = users.filter(u => u.role === 'toolman' && u.jurusan_id == currentUser.jurusan_id);
+                }
+
+                filteredUsers.forEach(u => {
                     const jurusanData = jurusan.find(j => j.id == u.jurusan_id);
                     const jurusanNama = jurusanData ? jurusanData.nama : '-';
 
@@ -5518,14 +6135,15 @@
                 return;
             }
 
-            let fotoUrl = '';
+            let finalFotoUrl = id ? (alat.find(a => a.id == id).foto || '') : '';
 
-            // Upload foto jika ada
+            // Handle foto upload if new file selected
             if (fotoFile) {
                 try {
                     const uploadResult = await uploadFoto(fotoFile);
                     if (uploadResult.success) {
-                        fotoUrl = uploadResult.downloadUrl;
+                        finalFotoUrl = uploadResult.url;
+                        document.getElementById('foto-preview').src = finalFotoUrl;
                     } else {
                         alert('Gagal mengunggah foto: ' + uploadResult.message);
                         return;
@@ -5534,13 +6152,28 @@
                     alert('Gagal mengunggah foto: ' + error.message);
                     return;
                 }
-            } else {
-                // Jika edit mode dan tidak upload foto baru, gunakan foto lama
-                if (id) {
-                    const alatData = alat.find(a => a.id == id);
-                    if (alatData && alatData.foto) {
-                        fotoUrl = alatData.foto;
+            } else if (document.getElementById('foto-preview').src.startsWith('data:')) {
+                // If captured from camera, upload the base64
+                const base64Data = document.getElementById('foto-preview').src.split(',')[1];
+                const mimeType = 'image/jpeg';
+                const filename = `alat_${Date.now()}.jpg`;
+
+                try {
+                    const result = await saveDataToSpreadsheet('uploadFoto', {
+                        base64: base64Data,
+                        mimeType: mimeType,
+                        filename: filename
+                    });
+                    if (result.success) {
+                        finalFotoUrl = result.url;
+                        document.getElementById('foto-preview').src = finalFotoUrl;
+                    } else {
+                        alert('Gagal mengunggah foto kamera: ' + result.message);
+                        return;
                     }
+                } catch (error) {
+                    alert('Gagal mengunggah foto kamera: ' + error.message);
+                    return;
                 }
             }
 
@@ -5553,7 +6186,7 @@
                 kondisi: kondisi,
                 keterangan: keterangan,
                 jurusan_id: jurusanId,
-                foto: fotoUrl
+                foto: finalFotoUrl
             };
 
             // OPTIMISTIC UI: Close modal immediately
@@ -5650,15 +6283,14 @@
                 }
             }
 
-            const today = new Date().toISOString().split('T')[0];
-            const nomorPeminjaman = generateNomorPeminjaman(jurusanId);
-
+            const pid = document.getElementById('peminjaman-id').value;
             const peminjamanData = {
-                nomor_peminjaman: nomorPeminjaman,
+                id: pid ? parseInt(pid) : null,
+                nomor_peminjaman: pid ? peminjaman.find(p => p.id == pid).nomor_peminjaman : generateNomorPeminjaman(jurusanId),
                 nama_peminjam: namaPeminjam,
                 nomor_hp: nomorHp,
                 kelas_unit: kelas,
-                tanggal_pinjam: today,
+                tanggal_pinjam: pid ? peminjaman.find(p => p.id == pid).tanggal_pinjam : today,
                 tanggal_kembali_estimasi: tanggalKembali,
                 items: alatDipinjam.map(item => ({
                     id: item.id,
@@ -5668,22 +6300,26 @@
                 created_by: currentUser.id
             };
 
+            const action = pid ? 'updatePeminjaman' : 'savePeminjaman';
+
             // OPTIMISTIC UI: Close modal immediately
             alatDipinjam = [];
             closeModal('peminjaman-modal');
             showToast('Menyimpan...', 'Peminjaman sedang diproses', 'info', 2000);
 
             // Save in background
-            saveDataToSpreadsheet('savePeminjaman', peminjamanData).then(result => {
+            saveDataToSpreadsheet(action, peminjamanData).then(result => {
                 if (result.success) {
                     loadPeminjamanTable();
                     loadRiwayatTable();
                     updateDashboardStats();
 
-                    // Tampilkan detail dengan barcode
-                    const newPeminjaman = peminjaman.find(p => p.nomor_peminjaman === nomorPeminjaman);
-                    if (newPeminjaman) {
-                        showDetailPeminjamanWithBarcode(newPeminjaman.id);
+                    // Tampilkan detail dengan barcode jika peminjaman baru
+                    if (!pid) {
+                        const newPeminjaman = peminjaman.find(p => p.nomor_peminjaman === peminjamanData.nomor_peminjaman);
+                        if (newPeminjaman) {
+                            showDetailPeminjamanWithBarcode(newPeminjaman.id);
+                        }
                     }
                 }
             });
@@ -5741,6 +6377,57 @@
                 const result = await saveDataToSpreadsheet('processPengembalian', { id: peminjamanId });
                 if (result.success) {
                     alert('Pengembalian berhasil diproses!');
+                    await loadDataFromSpreadsheet();
+                    loadPeminjamanTable();
+                    loadRiwayatTable();
+                    updateDashboardStats();
+                }
+            }
+        }
+
+        function showEditPeminjamanModal(id) {
+            const p = peminjaman.find(item => item.id == id);
+            if (!p) return;
+
+            document.getElementById('peminjaman-id').value = p.id;
+            document.getElementById('peminjam-nama').value = p.nama_peminjam;
+            document.getElementById('peminjam-kelas').value = p.kelas_unit;
+            document.getElementById('peminjam-nomor-hp').value = p.nomor_hp || '';
+            document.getElementById('peminjaman-jurusan').value = p.jurusan_id;
+            document.getElementById('peminjaman-tanggal-kembali').value = formatDateForInput(p.tanggal_kembali_estimasi);
+            document.getElementById('peminjaman-keperluan').value = p.keperluan || '';
+            document.getElementById('peminjaman-save-btn-text').textContent = 'Update Peminjaman';
+
+            // Load items
+            updateAlatDropdown();
+            alatDipinjam = p.items.map(item => {
+                const a = alat.find(tool => tool.id == item.id);
+                return {
+                    id: item.id,
+                    nama: a ? a.nama : 'Alat tidak ditemukan',
+                    jumlah_pinjam: item.jumlah
+                };
+            });
+            updateDaftarAlatPinjam();
+
+            showModal('peminjaman-modal');
+        }
+
+        function formatDateForInput(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toISOString().split('T')[0];
+        }
+
+        async function deleteRiwayat(id) {
+            if (confirm('Apakah Anda yakin ingin menghapus data riwayat ini?')) {
+                const result = await saveDataToSpreadsheet('deleteRiwayat', { id: id });
+                if (result.success) {
+                    showToast('Sukses', 'Riwayat berhasil dihapus', 'success');
+                    await loadDataFromSpreadsheet();
+                    loadRiwayatTable();
+                } else {
+                    alert('Gagal menghapus riwayat: ' + result.message);
                 }
             }
         }
@@ -5782,6 +6469,13 @@
                 option.textContent = j.nama;
                 jurusanSelect.appendChild(option);
             });
+
+            if (currentUser && currentUser.role === 'guru') {
+                jurusanSelect.value = currentUser.jurusan_id;
+                jurusanSelect.disabled = true;
+            } else {
+                jurusanSelect.disabled = false;
+            }
 
             showModal('kategori-modal');
         }
@@ -5983,16 +6677,29 @@
                 jurusanSelect.appendChild(option);
             });
 
-            // Show/hide jurusan field based on role
+            // Show/hide jurusan field based on role (Guru and ToolMan need jurusan)
             const roleSelect = document.getElementById('form-user-role');
             roleSelect.addEventListener('change', function () {
-                if (this.value === 'guru') {
+                if (this.value === 'guru' || this.value === 'toolman') {
                     jurusanSelect.parentElement.style.display = 'block';
                 } else {
                     jurusanSelect.parentElement.style.display = 'none';
                     jurusanSelect.value = '';
                 }
             });
+
+            // Handle Guru role restrictions
+            const isGuru = currentUser && currentUser.role === 'guru';
+            if (isGuru) {
+                roleSelect.value = 'toolman';
+                roleSelect.disabled = true;
+                jurusanSelect.value = currentUser.jurusan_id;
+                jurusanSelect.disabled = true;
+                jurusanSelect.parentElement.style.display = 'block';
+            } else {
+                roleSelect.disabled = false;
+                jurusanSelect.disabled = false;
+            }
 
             // Trigger change event if editing
             if (id) {
@@ -6039,8 +6746,8 @@
                 return;
             }
 
-            if (role === 'guru' && !jurusanId) {
-                alert('Jurusan harus dipilih untuk role Guru!');
+            if ((role === 'guru' || role === 'toolman') && !jurusanId) {
+                alert('Jurusan harus dipilih untuk role Guru atau ToolMan!');
                 return;
             }
 
@@ -6054,17 +6761,16 @@
             const userData = {
                 full_name: nama,
                 username: username,
-                password: password, // Kirim password (kosong jika tidak diubah saat edit)
+                password: password,
                 role: role,
-                jurusan_id: role === 'guru' ? parseInt(jurusanId) : null
+                jurusan_id: (role === 'guru' || role === 'toolman') ? parseInt(jurusanId) : null
             };
 
             if (id) {
                 userData.id = parseInt(id);
-                const result = await saveDataToSpreadsheet('saveUser', userData);
+                const result = await saveDataToSpreadsheet('updateUser', userData);
                 if (result.success) {
                     alert('Data pengguna berhasil diperbarui!');
-                    // PERBAIKAN: Auto-refresh data
                     await loadDataFromSpreadsheet();
                     loadUsersTable();
                 }
@@ -6072,7 +6778,6 @@
                 const result = await saveDataToSpreadsheet('saveUser', userData);
                 if (result.success) {
                     alert('Data pengguna berhasil disimpan!');
-                    // PERBAIKAN: Auto-refresh data
                     await loadDataFromSpreadsheet();
                     loadUsersTable();
                 }
@@ -6102,11 +6807,242 @@
                 const result = await saveDataToSpreadsheet('deleteUser', { id: id });
                 if (result.success) {
                     alert('Pengguna berhasil dihapus!');
-                    // PERBAIKAN: Auto-refresh data
                     await loadDataFromSpreadsheet();
                     loadUsersTable();
                 }
             }
+        }
+
+        function showEditProfileModal() {
+            if (!currentUser) return;
+            document.getElementById('edit-profile-nama').value = currentUser.full_name;
+            document.getElementById('edit-profile-current-password').value = '';
+            document.getElementById('edit-profile-new-password').value = '';
+            document.getElementById('edit-profile-delete-photo-flag').value = '0';
+            document.getElementById('edit-profile-photo').value = '';
+
+            // Photo Preview
+            const previewImg = document.getElementById('edit-profile-photo-preview');
+            const initialsSpan = document.getElementById('edit-profile-initials');
+            const btnDelete = document.getElementById('btn-delete-avatar');
+
+            if (currentUser.photo) {
+                previewImg.src = getDriveThumbnail(currentUser.photo);
+                previewImg.style.display = 'block';
+                initialsSpan.style.display = 'none';
+                if (btnDelete) btnDelete.style.display = 'block';
+            } else {
+                previewImg.style.display = 'none';
+                initialsSpan.textContent = currentUser.full_name.charAt(0).toUpperCase();
+                initialsSpan.style.display = 'block';
+                if (btnDelete) btnDelete.style.display = 'none';
+            }
+
+            showModal('edit-profile-modal');
+        }
+
+        function toggleProfilePassword(id, icon) {
+            const input = document.getElementById(id);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function previewProfilePhoto(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const previewImg = document.getElementById('edit-profile-photo-preview');
+                const initialsSpan = document.getElementById('edit-profile-initials');
+                const btnDelete = document.getElementById('btn-delete-avatar');
+
+                previewImg.src = e.target.result;
+                previewImg.style.display = 'block';
+                initialsSpan.style.display = 'none';
+                if (btnDelete) btnDelete.style.display = 'block';
+                document.getElementById('edit-profile-delete-photo-flag').value = '0';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearProfilePhoto() {
+            const previewImg = document.getElementById('edit-profile-photo-preview');
+            const initialsSpan = document.getElementById('edit-profile-initials');
+            const btnDelete = document.getElementById('btn-delete-avatar');
+            const photoInput = document.getElementById('edit-profile-photo');
+
+            previewImg.style.display = 'none';
+            previewImg.src = '';
+            initialsSpan.textContent = (document.getElementById('edit-profile-nama').value || 'A').charAt(0).toUpperCase();
+            initialsSpan.style.display = 'block';
+            if (btnDelete) btnDelete.style.display = 'none';
+
+            photoInput.value = '';
+            document.getElementById('edit-profile-delete-photo-flag').value = '1';
+        }
+
+        function updateSidebarProfile() {
+            if (!currentUser) return;
+            const fullName = currentUser.full_name;
+            const roleFormatted = formatRole(currentUser.role);
+            const initial = fullName.charAt(0).toUpperCase();
+
+            // Name & Role
+            const nameEl = document.getElementById('user-fullname-sidebar');
+            const roleEl = document.getElementById('user-role-sidebar');
+            if (nameEl) nameEl.textContent = fullName;
+            if (roleEl) roleEl.textContent = roleFormatted;
+
+            // Avatar
+            const initialsEl = document.getElementById('user-initials-sidebar');
+            const photoEl = document.getElementById('user-photo-sidebar');
+
+            if (currentUser.photo) {
+                // Add timestamp to force refresh if it's the same URL (though Drive URLs change)
+                const thumb = getDriveThumbnail(currentUser.photo);
+                const cacheBuster = thumb.includes('?') ? `&t=${Date.now()}` : `?t=${Date.now()}`;
+                const finalUrl = thumb + cacheBuster;
+
+                if (photoEl) {
+                    photoEl.src = finalUrl;
+                    photoEl.style.display = 'block';
+                }
+                if (initialsEl) initialsEl.style.display = 'none';
+
+                // Legacy top bar
+                const legacyAvatar = document.getElementById('user-avatar');
+                if (legacyAvatar) {
+                    legacyAvatar.innerHTML = `<img src="${finalUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">`;
+                }
+            } else {
+                if (photoEl) photoEl.style.display = 'none';
+                if (initialsEl) {
+                    initialsEl.textContent = initial;
+                    initialsEl.style.display = 'block';
+                }
+
+                // Legacy top bar
+                const legacyAvatar = document.getElementById('user-avatar');
+                if (legacyAvatar) legacyAvatar.textContent = initial;
+            }
+
+            // Elements legacy (top bar) text
+            const topName = document.getElementById('user-fullname');
+            const topRole = document.getElementById('user-role');
+            if (topName) topName.textContent = fullName;
+            if (topRole) topRole.textContent = roleFormatted;
+        }
+
+        async function updateUserProfile() {
+            const nama = document.getElementById('edit-profile-nama').value.trim();
+            const currentPass = document.getElementById('edit-profile-current-password').value;
+            const newPass = document.getElementById('edit-profile-new-password').value;
+            const photoInput = document.getElementById('edit-profile-photo');
+            const photoFile = photoInput.files[0];
+
+            if (!nama) {
+                alert('Nama Lengkap wajib diisi!');
+                return;
+            }
+
+            // Verifikasi password hanya jika ingin mengubah password
+            if (newPass) {
+                if (!currentPass) {
+                    alert('Harap masukkan Password Saat Ini untuk mengubah password baru!');
+                    return;
+                }
+                if (currentPass !== currentUser.password) {
+                    alert('Password saat ini salah! Verifikasi gagal.');
+                    return;
+                }
+            }
+
+            showLoading('Memperbarui profil...');
+
+            let photoUrl = currentUser.photo || '';
+            const deleteFlag = document.getElementById('edit-profile-delete-photo-flag').value === '1';
+
+            if (deleteFlag) {
+                photoUrl = '';
+            }
+
+            // Upload foto jika ada yang baru (override delete flag jika pilih foto baru lagi)
+            if (photoFile) {
+                try {
+                    const base64 = await toBase64(photoFile);
+                    const uploadResult = await saveDataToSpreadsheet('uploadFoto', {
+                        base64: base64,
+                        filename: `avatar_${currentUser.username}_${Date.now()}.jpg`,
+                        mimeType: photoFile.type || 'image/jpeg'
+                    });
+
+                    if (uploadResult.success) {
+                        photoUrl = uploadResult.url;
+                        console.log('Photo uploaded:', photoUrl);
+                    } else {
+                        throw new Error(uploadResult.message || 'Upload gagal');
+                    }
+                } catch (err) {
+                    console.error('Photo upload failed:', err);
+                    hideLoading();
+                    alert('Gagal mengunggah foto: ' + err.message);
+                    return;
+                }
+            }
+
+            const userData = {
+                id: currentUser.id,
+                full_name: nama,
+                username: currentUser.username,
+                role: currentUser.role,
+                jurusan_id: currentUser.jurusan_id,
+                photo: photoUrl
+            };
+
+            // Jika ada password baru, gunakan itu. Jika tidak, tetap gunakan yang lama.
+            userData.password = newPass ? newPass : currentUser.password;
+
+            const result = await saveDataToSpreadsheet('updateUser', userData);
+            hideLoading();
+
+            if (result.success) {
+                // Update local currentUser
+                currentUser.full_name = nama;
+                currentUser.photo = photoUrl;
+                if (newPass) currentUser.password = newPass;
+
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+                // Update UI Sidebar dan seluruh element terkait
+                updateSidebarProfile();
+
+                alert('Success! Profil Anda berhasil diperbarui.');
+                closeModal('edit-profile-modal');
+
+                if (newPass) {
+                    alert('Password diubah, silakan login kembali.');
+                    handleLogout();
+                }
+            } else {
+                alert('Gagal memperbarui profil: ' + result.message);
+            }
+        }
+
+        function toBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
         }
 
         // ================== FUNGSI SETTINGS ==================
@@ -6318,11 +7254,13 @@
         }
 
         // ================== FUNGSI FILTER ==================
-        function filterAlatTable() {
+        function filterAlatTable(resetPage = true) {
+            if (resetPage) currentPageAlat = 1;
             const kategoriFilter = document.getElementById('filter-kategori').value;
             const jurusanFilter = document.getElementById('filter-jurusan').value;
             const kondisiFilter = document.getElementById('filter-kondisi').value;
             const tersediaFilter = document.getElementById('filter-tersedia').value;
+            const limitFilter = parseInt(document.getElementById('filter-limit')?.value || '10');
             const searchFilter = document.getElementById('search-alat').value.toLowerCase();
 
             let filteredAlat = alat;
@@ -6364,12 +7302,27 @@
             // Update count
             document.getElementById('alat-count').textContent = filteredAlat.length;
 
+            // Apply limit & pagination
+            const totalFiltered = filteredAlat.length;
+            const startIndex = (currentPageAlat - 1) * limitFilter;
+            const endIndex = Math.min(startIndex + limitFilter, totalFiltered);
+
+            // Update showing info
+            const showingInfo = document.getElementById('alat-showing-info');
+            if (showingInfo) {
+                showingInfo.textContent = totalFiltered > 0 ? `Showing ${startIndex + 1} to ${endIndex} of ${totalFiltered} data` : 'Showing 0 to 0 of 0 data';
+            }
+
+            renderAlatPagination(totalFiltered, limitFilter);
+
+            const displayAlat = filteredAlat.slice(startIndex, endIndex);
+
             // Update desktop table
             const tbody = document.querySelector('#alat-table tbody');
             if (tbody) {
                 tbody.innerHTML = '';
 
-                filteredAlat.forEach(a => {
+                displayAlat.forEach(a => {
                     const kategoriData = kategori.find(k => k.id == a.kategori_id);
                     const kategoriNama = kategoriData ? kategoriData.nama : '-';
 
@@ -6380,7 +7333,7 @@
                     row.innerHTML = `
                         <td>
                             ${a.foto ?
-                            `<img src="${a.foto}" class="alat-thumbnail" alt="${a.nama}">` :
+                            `<img src="${getDriveThumbnail(a.foto)}" class="alat-thumbnail" alt="${a.nama}" onclick="window.open('${a.foto}', '_blank')" style="cursor: pointer;">` :
                             `<div class="alat-thumbnail" style="background: var(--gradient-primary); color: white; display: flex; align-items: center; justify-content: center;">
                                     <i class="fas fa-tools"></i>
                                 </div>`
@@ -6395,10 +7348,13 @@
                         <td><span class="badge ${getKondisiBadgeClass(a.kondisi)}">${a.kondisi}</span></td>
                         <td>
                             <div class="action-buttons">
-                                <button class="btn btn-sm btn-info" onclick="showAlatModal(${a.id})">
+                                <button class="btn btn-sm btn-info" onclick="showAlatModal(${a.id})" title="Edit Alat">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteAlat(${a.id})" ${a.jumlah_tersedia < a.jumlah_total ? 'disabled' : ''}>
+                                <button class="btn btn-sm btn-primary" onclick="showQRModal(${a.id})" title="Cetak QR">
+                                    <i class="fas fa-qrcode"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteAlat(${a.id})" ${a.jumlah_tersedia < a.jumlah_total ? 'disabled' : ''} title="Hapus Alat">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -6410,7 +7366,7 @@
 
             // Update mobile view if on mobile
             if (window.innerWidth <= 768) {
-                updateAlatTableMobile(filteredAlat);
+                updateAlatTableMobile(displayAlat);
             }
         }
 
@@ -6429,16 +7385,13 @@
                 const kategoriData = kategori.find(k => k.id == a.kategori_id);
                 const kategoriNama = kategoriData ? kategoriData.nama : '-';
 
-                const jurusanData = jurusan.find(j => j.id == a.jurusan_id);
-                const jurusanNama = jurusanData ? jurusanData.nama : '-';
-
-                const item = document.createElement('div');
-                item.className = 'mobile-table-item';
-
                 const actions = `
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
                         <button class="btn btn-sm btn-info" onclick="showAlatModal(${a.id})" style="flex: 1;">
                             <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="showQRModal(${a.id})" style="flex: 1;">
+                            <i class="fas fa-qrcode"></i> QR
                         </button>
                         <button class="btn btn-sm btn-danger" onclick="deleteAlat(${a.id})" ${a.jumlah_tersedia < a.jumlah_total ? 'disabled' : ''} style="flex: 1;">
                             <i class="fas fa-trash"></i> Hapus
@@ -6446,6 +7399,8 @@
                     </div>
                 `;
 
+                const item = document.createElement('div');
+                item.className = 'mobile-table-item';
                 item.innerHTML = `
                     <div class="mobile-table-row">
                         <span class="mobile-table-label">Kode Seri</span>
@@ -6460,22 +7415,163 @@
                         <span class="mobile-table-value">${kategoriNama}</span>
                     </div>
                     <div class="mobile-table-row">
-                        <span class="mobile-table-label">Jurusan</span>
-                        <span class="mobile-table-value">${jurusanNama}</span>
-                    </div>
-                    <div class="mobile-table-row">
-                        <span class="mobile-table-label">Jumlah</span>
+                        <span class="mobile-table-label">Stok</span>
                         <span class="mobile-table-value">${a.jumlah_tersedia}/${a.jumlah_total}</span>
                     </div>
                     <div class="mobile-table-row">
-                        <span class="mobile-table-label">Kondisi</span>
-                        <span class="mobile-table-value"><span class="badge ${getKondisiBadgeClass(a.kondisi)}">${a.kondisi}</span></span>
+                        <span class="mobile-table-label">Foto Alat</span>
+                        <span class="mobile-table-value">
+                            ${a.foto ?
+                        `<img src="${getDriveThumbnail(a.foto)}" class="alat-thumbnail" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer;" alt="${a.nama}" onclick="window.open('${a.foto}', '_blank')">` :
+                        '-'
+                    }
+                        </span>
                     </div>
                     ${actions}
                 `;
-
                 container.appendChild(item);
             });
+        }
+
+        // ================== ADVANCED FEATURES LOGIC ==================
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            if (newTheme === 'dark') {
+                html.removeAttribute('data-theme');
+            } else {
+                html.setAttribute('data-theme', 'light');
+            }
+            localStorage.setItem('theme', newTheme);
+
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            if (icon) {
+                icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+            }
+            if (text) {
+                text.textContent = theme === 'light' ? 'Mode Gelap' : 'Mode Terang';
+            }
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            updateThemeIcon(savedTheme);
+        }
+
+        function showUpdatesModal() {
+            showModal('updates-modal');
+        }
+
+        function showImportModal() {
+            showModal('import-modal');
+        }
+
+        function handleImportExcel() {
+            const fileInput = document.getElementById('import-file');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Pilih file Excel terlebih dahulu!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.SheetNames[0];
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1 });
+
+                // Skip header row and map to object
+                const alatToImport = jsonData.slice(1).map(row => ({
+                    kode_seri: row[0],
+                    nama: row[1],
+                    kategori_id: parseInt(row[2]),
+                    jumlah_total: parseInt(row[3]),
+                    jumlah_tersedia: parseInt(row[3]),
+                    jurusan_id: parseInt(row[4]),
+                    keterangan: row[5] || ''
+                })).filter(a => a.kode_seri && a.nama);
+
+                if (alatToImport.length === 0) {
+                    alert('Tidak ada data valid yang bisa diimpor!');
+                    return;
+                }
+
+                showToast('Mengimpor...', `Memproses ${alatToImport.length} data alat`, 'info', 3000);
+
+                const result = await saveDataToSpreadsheet('batchSaveAlat', alatToImport);
+                if (result.success) {
+                    closeModal('import-modal');
+                    alert(`Berhasil mengimpor ${result.count} data alat!`);
+                    await loadDataFromSpreadsheet();
+                    loadAlatTable();
+                    updateDashboardStats();
+                } else {
+                    alert('Gagal mengimpor data: ' + result.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        let qrCodeInstance = null;
+        function showQRModal(alatId) {
+            const a = alat.find(item => item.id == alatId);
+            if (!a) return;
+
+            document.getElementById('qr-school-name').textContent = settings.schoolName || 'PinjamAlat System';
+            document.getElementById('qr-alat-name').textContent = a.nama;
+            document.getElementById('qr-alat-code').textContent = a.kode_seri;
+
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+
+            qrCodeInstance = new QRCode(qrContainer, {
+                text: a.kode_seri,
+                width: 150,
+                height: 150,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            showModal('qr-modal');
+        }
+
+        function printQRLabel() {
+            const printContent = document.getElementById('qr-label-container').innerHTML;
+            const originalContent = document.body.innerHTML;
+
+            const printWindow = window.open('', '', 'width=600,height=600');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Cetak Label QR</title>
+                        <style>
+                            body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                            .label { border: 1px solid #000; padding: 20px; text-align: center; width: 250px; }
+                            h4 { margin: 0 0 10px 0; font-size: 14px; }
+                            img { max-width: 150px; }
+                            p { margin: 5px 0 0 0; font-size: 12px; }
+                        </style>
+                    </head>
+                    <body onload="window.print(); window.close();">
+                        <div class="label">${printContent}</div>
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         // ================== FUNGSI KAMERA ==================
@@ -6513,43 +7609,193 @@
 
         // ================== FUNGSI EKSPOR ==================
         function exportAlatToExcel() {
-            alert('Fitur ekspor Excel untuk data alat');
+            const exportData = alat.map(a => {
+                const k = kategori.find(cat => cat.id == a.kategori_id);
+                const j = jurusan.find(jur => jur.id == a.jurusan_id);
+                return {
+                    'Kode Seri': a.kode_seri,
+                    'Nama Alat': a.nama,
+                    'Kategori': k ? k.nama : '-',
+                    'Jurusan': j ? j.nama : '-',
+                    'Total': a.jumlah_total,
+                    'Tersedia': a.jumlah_tersedia,
+                    'Kondisi': a.kondisi,
+                    'Keterangan': a.keterangan || '-'
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data Alat");
+            XLSX.writeFile(wb, `Data_Alat_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
 
         function exportAlatToPDF() {
-            alert('Fitur ekspor PDF untuk data alat');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            doc.text("Laporan Data Alat", 14, 15);
+
+            const columns = ["Kode Seri", "Nama Alat", "Kategori", "Jurusan", "Total", "Tersedia", "Kondisi"];
+            const rows = alat.map(a => {
+                const k = kategori.find(cat => cat.id == a.kategori_id);
+                const j = jurusan.find(jur => jur.id == a.jurusan_id);
+                return [
+                    a.kode_seri,
+                    a.nama,
+                    k ? k.nama : '-',
+                    j ? j.nama : '-',
+                    a.jumlah_total,
+                    a.jumlah_tersedia,
+                    a.kondisi
+                ];
+            });
+
+            doc.autoTable({
+                head: [columns],
+                body: rows,
+                startY: 20,
+                theme: 'grid'
+            });
+
+            doc.save(`Data_Alat_${new Date().toISOString().split('T')[0]}.pdf`);
         }
 
         function exportRiwayatToExcel() {
-            alert('Fitur ekspor Excel untuk riwayat');
+            const exportData = peminjaman.map(p => {
+                let alatList = p.items.map(item => {
+                    const a = alat.find(tool => tool.id == item.id);
+                    return a ? `${a.nama} (${item.jumlah})` : `ID:${item.id} (${item.jumlah})`;
+                }).join(', ');
+
+                return {
+                    'No. Peminjaman': p.nomor_peminjaman,
+                    'Nama Peminjam': p.nama_peminjam,
+                    'Kelas/Unit': p.kelas_unit,
+                    'Alat': alatList,
+                    'Tgl Pinjam': formatDate(p.tanggal_pinjam),
+                    'Tgl Kembali (Est)': formatDate(p.tanggal_kembali_estimasi),
+                    'Tgl Kembali (Aktual)': p.tanggal_kembali_aktual ? formatDate(p.tanggal_kembali_aktual) : '-',
+                    'Status': p.status
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Riwayat Peminjaman");
+            XLSX.writeFile(wb, `Riwayat_Peminjaman_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
 
         function exportRiwayatToPDF() {
-            alert('Fitur ekspor PDF untuk riwayat');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            doc.text("Laporan Riwayat Peminjaman", 14, 15);
+
+            const columns = ["No", "Nama Peminjam", "Kelas", "Alat", "Tgl Pinjam", "Tgl Kembali", "Status"];
+            const rows = peminjaman.map(p => {
+                let alatList = p.items.map(item => {
+                    const a = alat.find(tool => tool.id == item.id);
+                    return a ? `${a.nama}(${item.jumlah})` : `${item.id}(${item.jumlah})`;
+                }).join(', ');
+
+                return [
+                    p.nomor_peminjaman,
+                    p.nama_peminjam,
+                    p.kelas_unit,
+                    alatList,
+                    formatDate(p.tanggal_pinjam),
+                    p.tanggal_kembali_aktual ? formatDate(p.tanggal_kembali_aktual) : (formatDate(p.tanggal_kembali_estimasi) + ' (Est)'),
+                    p.status
+                ];
+            });
+
+            doc.autoTable({
+                head: [columns],
+                body: rows,
+                startY: 20,
+                theme: 'grid',
+                styles: { fontSize: 8 }
+            });
+
+            doc.save(`Riwayat_Peminjaman_${new Date().toISOString().split('T')[0]}.pdf`);
         }
 
         function exportKategoriToExcel() {
-            alert('Fitur ekspor Excel untuk kategori');
+            const exportData = kategori.map(k => {
+                const j = jurusan.find(jur => jur.id == k.jurusan_id);
+                const count = alat.filter(a => a.kategori_id == k.id).length;
+                return {
+                    'Nama Kategori': k.nama,
+                    'Jurusan': j ? j.nama : '-',
+                    'Jumlah Jenis Alat': count
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Kategori");
+            XLSX.writeFile(wb, `Data_Kategori_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
 
         function exportKategoriToPDF() {
-            alert('Fitur ekspor PDF untuk kategori');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Daftar Kategori Alat", 14, 15);
+            const rows = kategori.map(k => {
+                const j = jurusan.find(jur => jur.id == k.jurusan_id);
+                return [k.nama, j ? j.nama : '-'];
+            });
+            doc.autoTable({ head: [["Kategori", "Jurusan"]], body: rows, startY: 20 });
+            doc.save("Data_Kategori.pdf");
         }
 
         function exportJurusanToExcel() {
-            alert('Fitur ekspor Excel untuk jurusan');
+            const exportData = jurusan.map(j => ({
+                'Nama Jurusan': j.nama,
+                'Kode': j.kode
+            }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Jurusan");
+            XLSX.writeFile(wb, "Data_Jurusan.xlsx");
         }
 
         function exportJurusanToPDF() {
-            alert('Fitur ekspor PDF untuk jurusan');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Daftar Jurusan", 14, 15);
+            const rows = jurusan.map(j => [j.nama, j.kode]);
+            doc.autoTable({ head: [["Nama Jurusan", "Kode"]], body: rows, startY: 20 });
+            doc.save("Data_Jurusan.pdf");
         }
 
         function exportUsersToExcel() {
-            alert('Fitur ekspor Excel untuk users');
+            const exportData = users.map(u => {
+                const j = jurusan.find(jur => jur.id == u.jurusan_id);
+                return {
+                    'Nama Lengkap': u.full_name,
+                    'Username': u.username,
+                    'Role': u.role,
+                    'Jurusan': j ? j.nama : 'Semua Jurusan'
+                };
+            });
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Users");
+            XLSX.writeFile(wb, "Data_Users.xlsx");
         }
 
         function exportUsersToPDF() {
-            alert('Fitur ekspor PDF untuk users');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Daftar Pengguna", 14, 15);
+            const rows = users.map(u => {
+                const j = jurusan.find(jur => jur.id == u.jurusan_id);
+                return [u.full_name, u.username, u.role, j ? j.nama : '-'];
+            });
+            doc.autoTable({ head: [["Nama", "Username", "Role", "Jurusan"]], body: rows, startY: 20 });
+            doc.save("Data_Users.pdf");
         }
 
         // ================== PASSWORD TOGGLE ==================

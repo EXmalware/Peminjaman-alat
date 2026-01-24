@@ -1,8 +1,12 @@
 // Google Apps Script untuk PinjamAlat
 // Deploy sebagai Web App dengan Execute as: me, Who has access: Anyone
 
-const SPREADSHEET_ID = "Paster ID Spreadsheet anda disini";
-const DRIVE_FOLDER_ID = "Paster ID Folder Drive anda disini";
+const SPREADSHEET_ID = "1xjZqhlt6RxFUHtFbkNE_1nqyph1xbA78jtIYz98A6vw";
+const DRIVE_FOLDER_ID = "1K5ycuoVqPbONG8nUAwU7CMSRnhR-cu8P";
+
+// OPTIMASI: Cache configuration untuk mengurangi read ke spreadsheet
+const CACHE_DURATION = 300; // 5 menit dalam detik
+const cache = CacheService.getScriptCache();
 
 function doGet(e) {
   return handleRequest(e);
@@ -90,8 +94,14 @@ function handleRequest(e) {
       case 'deleteUser':
         result = deleteUser(data);
         break;
+      case 'deleteRiwayat':
+        result = deleteRiwayat(data);
+        break;
       case 'uploadFoto':
         result = uploadFotoToDrive(data);
+        break;
+      case 'updateUser':
+        result = updateUser(data);
         break;
       case 'processPengembalian':
         result = processPengembalian(data);
@@ -126,6 +136,14 @@ function doOptions(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ================== CACHE HELPERS ==================
+function clearCacheKey(key) {
+  try {
+    cache.remove(key);
+  } catch(e) {
+    console.log('Cache clear error:', e);
+  }
+}
 
 // ================== FUNGSI UTAMA ==================
 
@@ -153,7 +171,8 @@ function loginUser(data) {
           password: user[2],
           full_name: user[3],
           role: user[4],
-          jurusan_id: user[5]
+          jurusan_id: user[5],
+          photo: user[6] || ''
         }
       };
     }
@@ -216,6 +235,12 @@ function getAllPeminjaman(data) {
   const peminjaman = peminjamanData.map(row => {
     // Filter berdasarkan jurusan jika user bukan superuser
     if(data.userRole && data.userRole !== 'superuser' && data.jurusanId && row[10] != data.jurusanId) {
+      return null;
+    }
+    
+    // Khusus role 'peminjam' atau user biasa, hanya lihat miliknya sendiri jika ada field identifier (nama/username)
+    // Untuk saat ini kita asumsikan 'guru' bisa lihat semua di jurusannya, tapi 'peminjam' (siswa) hanya miliknya.
+    if(data.userRole === 'peminjam' && data.userName && row[2] !== data.userName) {
       return null;
     }
     
@@ -310,7 +335,8 @@ function getAllUsers() {
     password: row[2],
     full_name: row[3],
     role: row[4],
-    jurusan_id: row[5]
+    jurusan_id: row[5],
+    photo: row[6] || ''
   }));
   
   return { success: true, data: users };
@@ -499,6 +525,12 @@ function updatePeminjaman(data) {
     const row = peminjamanData[i];
     if(row[0] == data.id) {
       // Update row
+      if(data.nama_peminjam) peminjamanSheet.getRange(i + 2, 3).setValue(data.nama_peminjam);
+      if(data.nomor_hp !== undefined) peminjamanSheet.getRange(i + 2, 4).setValue(data.nomor_hp);
+      if(data.kelas_unit) peminjamanSheet.getRange(i + 2, 5).setValue(data.kelas_unit);
+      if(data.tanggal_pinjam) peminjamanSheet.getRange(i + 2, 6).setValue(new Date(data.tanggal_pinjam));
+      if(data.tanggal_kembali_estimasi) peminjamanSheet.getRange(i + 2, 7).setValue(new Date(data.tanggal_kembali_estimasi));
+      
       if(data.status) {
         peminjamanSheet.getRange(i + 2, 9).setValue(data.status); // kolom I (status)
       }
@@ -523,6 +555,35 @@ function updatePeminjaman(data) {
   return { 
     success: true, 
     message: 'Peminjaman berhasil diperbarui'
+  };
+}
+
+function deleteRiwayat(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const peminjamanSheet = ss.getSheetByName('Peminjaman');
+  const lastRow = peminjamanSheet.getLastRow();
+  
+  if(lastRow < 2) return { success: false, message: 'Tidak ada data peminjaman' };
+  
+  const peminjamanData = peminjamanSheet.getRange(2, 1, lastRow-1, 1).getValues();
+  let foundRow = -1;
+  
+  for(let i = 0; i < peminjamanData.length; i++) {
+    if(peminjamanData[i][0] == data.id) {
+      foundRow = i + 2;
+      break;
+    }
+  }
+  
+  if(foundRow === -1) {
+    return { success: false, message: 'Data riwayat tidak ditemukan' };
+  }
+  
+  peminjamanSheet.deleteRow(foundRow);
+  
+  return { 
+    success: true, 
+    message: 'Riwayat peminjaman berhasil dihapus'
   };
 }
 
@@ -569,22 +630,59 @@ function saveKategori(data) {
   const kategoriSheet = ss.getSheetByName('Kategori');
   const lastRow = kategoriSheet.getLastRow();
   
-  // Generate ID
-  const newId = lastRow === 1 ? 1 : kategoriSheet.getRange(lastRow, 1).getValue() + 1;
+  if (data.id) {
+    // Update existing category
+    const kategoriData = kategoriSheet.getRange(2, 1, lastRow - 1, 4).getValues();
+    for (let i = 0; i < kategoriData.length; i++) {
+      if (kategoriData[i][0] == data.id) {
+        kategoriSheet.getRange(i + 2, 2).setValue(data.nama);
+        kategoriSheet.getRange(i + 2, 3).setValue(data.jurusan_id);
+        return { success: true, message: 'Kategori berhasil diperbarui' };
+      }
+    }
+    return { success: false, message: 'Kategori tidak ditemukan' };
+  } else {
+    // Generate ID
+    const newId = lastRow === 1 ? 1 : kategoriSheet.getRange(lastRow, 1).getValue() + 1;
+    const newRow = [
+      newId,
+      data.nama,
+      data.jurusan_id,
+      new Date()
+    ];
+    kategoriSheet.appendRow(newRow);
+    return { success: true, message: 'Kategori berhasil disimpan', data: { id: newId } };
+  }
+}
+
+function batchSaveAlat(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const alatSheet = ss.getSheetByName('Alat');
+  let lastRow = alatSheet.getLastRow();
+  let startId = lastRow === 1 ? 1 : alatSheet.getRange(lastRow, 1).getValue() + 1;
   
-  const newRow = [
-    newId,
-    data.nama,
-    data.jurusan_id,
-    new Date()
-  ];
+  const rows = data.map((item, index) => [
+    startId + index,
+    item.kode_seri,
+    item.nama,
+    item.kategori_id,
+    item.jumlah_total,
+    item.jumlah_tersedia,
+    item.kondisi || 'Baik',
+    new Date(),
+    item.keterangan || '',
+    item.jurusan_id,
+    item.foto || ''
+  ]);
   
-  kategoriSheet.appendRow(newRow);
+  if (rows.length > 0) {
+    alatSheet.getRange(lastRow + 1, 1, rows.length, rows[0].length).setValues(rows);
+  }
   
   return { 
     success: true, 
-    message: 'Kategori berhasil disimpan',
-    data: { id: newId }
+    message: `${rows.length} alat berhasil diimpor`,
+    count: rows.length
   };
 }
 
@@ -593,23 +691,29 @@ function saveJurusan(data) {
   const jurusanSheet = ss.getSheetByName('Jurusan');
   const lastRow = jurusanSheet.getLastRow();
   
-  // Generate ID
-  const newId = lastRow === 1 ? 1 : jurusanSheet.getRange(lastRow, 1).getValue() + 1;
-  
-  const newRow = [
-    newId,
-    data.nama,
-    data.kode,
-    new Date()
-  ];
-  
-  jurusanSheet.appendRow(newRow);
-  
-  return { 
-    success: true, 
-    message: 'Jurusan berhasil disimpan',
-    data: { id: newId }
-  };
+  if (data.id) {
+    // Update existing jurusan
+    const jurusanData = jurusanSheet.getRange(2, 1, lastRow - 1, 4).getValues();
+    for (let i = 0; i < jurusanData.length; i++) {
+      if (jurusanData[i][0] == data.id) {
+        jurusanSheet.getRange(i + 2, 2).setValue(data.nama);
+        jurusanSheet.getRange(i + 2, 3).setValue(data.kode);
+        return { success: true, message: 'Jurusan berhasil diperbarui' };
+      }
+    }
+    return { success: false, message: 'Jurusan tidak ditemukan' };
+  } else {
+    // Generate ID
+    const newId = lastRow === 1 ? 1 : jurusanSheet.getRange(lastRow, 1).getValue() + 1;
+    const newRow = [
+      newId,
+      data.nama,
+      data.kode,
+      new Date()
+    ];
+    jurusanSheet.appendRow(newRow);
+    return { success: true, message: 'Jurusan berhasil disimpan', data: { id: newId } };
+  }
 }
 
 function saveUser(data) {
@@ -617,25 +721,54 @@ function saveUser(data) {
   const usersSheet = ss.getSheetByName('Users');
   const lastRow = usersSheet.getLastRow();
   
-  // Generate ID
-  const newId = lastRow === 1 ? 1 : usersSheet.getRange(lastRow, 1).getValue() + 1;
+  if (data.id) {
+    return updateUser(data);
+  } else {
+    // Generate ID
+    const newId = lastRow === 1 ? 1 : usersSheet.getRange(lastRow, 1).getValue() + 1;
+    const newRow = [
+      newId,
+      data.username,
+      data.password,
+      data.full_name,
+      data.role,
+      data.jurusan_id || '',
+      data.photo || ''
+    ];
+    usersSheet.appendRow(newRow);
+    return { success: true, message: 'User berhasil disimpan', data: { id: newId } };
+  }
+}
+
+function updateUser(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const usersSheet = ss.getSheetByName('Users');
+  const lastRow = usersSheet.getLastRow();
   
-  const newRow = [
-    newId,
-    data.username,
-    data.password,
-    data.full_name,
-    data.role,
-    data.jurusan_id || ''
-  ];
+  if (lastRow < 2) return { success: false, message: 'Tidak ada data user' };
   
-  usersSheet.appendRow(newRow);
+  const usersData = usersSheet.getRange(2, 1, lastRow - 1, 1).getValues();
   
-  return { 
-    success: true, 
-    message: 'User berhasil disimpan',
-    data: { id: newId }
-  };
+  for (let i = 0; i < usersData.length; i++) {
+    if (usersData[i][0] == data.id) {
+      if(data.username) usersSheet.getRange(i + 2, 2).setValue(data.username);
+      if(data.password) usersSheet.getRange(i + 2, 3).setValue(data.password);
+      if(data.full_name) usersSheet.getRange(i + 2, 4).setValue(data.full_name);
+      if(data.role) usersSheet.getRange(i + 2, 5).setValue(data.role);
+      
+      // Handle jurusan_id (can be null/empty)
+      const jurusanVal = data.jurusan_id !== undefined ? data.jurusan_id : '';
+      usersSheet.getRange(i + 2, 6).setValue(jurusanVal);
+
+      if (data.photo !== undefined) {
+        usersSheet.getRange(i + 2, 7).setValue(data.photo);
+      }
+      
+      return { success: true, message: 'User berhasil diperbarui' };
+    }
+  }
+  
+  return { success: false, message: 'User tidak ditemukan' };
 }
 
 function saveSettings(data) {
@@ -764,9 +897,15 @@ function uploadFotoToDrive(data) {
   try {
     const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
     
+    // Fallback names to prevent "Blob must have a name" error
+    const fileName = data.filename || data.fileName || "upload_" + Date.now() + ".jpg";
+    const mimeType = data.mimeType || data.mime_type || "image/jpeg";
+    
+    console.log('Uploading file:', fileName, 'Mime:', mimeType);
+    
     // Decode base64
     const bytes = Utilities.base64Decode(data.base64);
-    const blob = Utilities.newBlob(bytes, data.mimeType, data.filename);
+    const blob = Utilities.newBlob(bytes, mimeType, fileName);
     
     // Upload to Drive
     const file = folder.createFile(blob);
@@ -774,14 +913,17 @@ function uploadFotoToDrive(data) {
     // Set sharing permissions
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     
-    // Get direct download URL
-    const downloadUrl = `https://drive.google.com/uc?id=${file.getId()}&export=download`;
+    // Get thumbnail URL for better display
+    const fileId = file.getId();
+    const downloadUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
+    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
     
     return {
       success: true,
-      url: downloadUrl,
-      id: file.getId(),
-      downloadUrl: downloadUrl
+      url: thumbnailUrl,
+      id: fileId,
+      downloadUrl: downloadUrl,
+      thumbnailUrl: thumbnailUrl
     };
   } catch(error) {
     console.error('Upload error:', error);
