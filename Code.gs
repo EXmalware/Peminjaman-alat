@@ -1,8 +1,8 @@
 // Google Apps Script untuk PinjamAlat
 // Deploy sebagai Web App dengan Execute as: me, Who has access: Anyone
 
-const SPREADSHEET_ID = "1xjZqhlt6RxFUHtFbkNE_1nqyph1xbA78jtIYz98A6vw";
-const DRIVE_FOLDER_ID = "1K5ycuoVqPbONG8nUAwU7CMSRnhR-cu8P";
+const SPREADSHEET_ID = "FILE_ID";
+const DRIVE_FOLDER_ID = "FOLDER_ID";
 
 // OPTIMASI: Cache configuration untuk mengurangi read ke spreadsheet
 const CACHE_DURATION = 300; // 5 menit dalam detik
