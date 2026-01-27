@@ -3413,7 +3413,6 @@
         let settings = {};
         let stream = null; // Untuk kamera
         let currentPageAlat = 1;
-        const today = new Date().toISOString().split('T')[0];
 
         // Array untuk menyimpan alat yang akan dipinjam
         let alatDipinjam = [];
@@ -5588,8 +5587,9 @@
             });
 
             // Set tanggal kembali default
-            const nextWeek = new Date();
-            nextWeek.setDate(nextWeek.getDate() + 7);
+            const today = new Date();
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
             document.getElementById('peminjaman-tanggal-kembali').value = nextWeek.toISOString().split('T')[0];
 
             if (currentUser && currentUser.role === 'guru') {
@@ -6314,20 +6314,23 @@
             }
 
             const pid = document.getElementById('peminjaman-id').value;
+            const today = new Date().toISOString().split('T')[0];
+            const pFound = pid ? peminjaman.find(p => p.id == pid) : null;
+
             const peminjamanData = {
                 id: pid ? parseInt(pid) : null,
-                nomor_peminjaman: pid ? peminjaman.find(p => p.id == pid).nomor_peminjaman : generateNomorPeminjaman(jurusanId),
+                nomor_peminjaman: pFound ? pFound.nomor_peminjaman : generateNomorPeminjaman(jurusanId),
                 nama_peminjam: namaPeminjam,
                 nomor_hp: nomorHp,
                 kelas_unit: kelas,
-                tanggal_pinjam: pid ? peminjaman.find(p => p.id == pid).tanggal_pinjam : today,
+                tanggal_pinjam: pFound ? pFound.tanggal_pinjam : today,
                 tanggal_kembali_estimasi: tanggalKembali,
                 items: alatDipinjam.map(item => ({
                     id: item.id,
                     jumlah: item.jumlah_pinjam
                 })),
                 jurusan_id: jurusanId,
-                created_by: currentUser.id
+                created_by: currentUser ? currentUser.id : 1
             };
 
             const action = pid ? 'updatePeminjaman' : 'savePeminjaman';
