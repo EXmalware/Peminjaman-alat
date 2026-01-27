@@ -2924,6 +2924,11 @@
                     <!-- Container untuk alat yang dipinjam -->
                     <div class="form-group">
                         <label class="form-label">Pilih Alat</label>
+                        <div class="input-group mb-2">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="cari-alat-peminjaman" class="form-control"
+                                placeholder="Cari nama atau kode alat...">
+                        </div>
                         <select id="alat-pilihan" class="form-control" onchange="tambahAlatKeDaftarPinjam()">
                             <option value="">Pilih Alat...</option>
                         </select>
@@ -4424,7 +4429,7 @@
                         localStorage.setItem('lastUpdateSeen', '1.2');
                     }
                 } else {
-                    alert('Username atau password salah!');
+                    alert(result.message || 'Username atau password salah!');
                 }
             } catch (error) {
                 console.error('Login error:', error);
@@ -5309,6 +5314,13 @@
                 });
             }
 
+            const cariAlatPeminjaman = document.getElementById('cari-alat-peminjaman');
+            if (cariAlatPeminjaman) {
+                cariAlatPeminjaman.addEventListener('input', function () {
+                    updateAlatDropdown();
+                });
+            }
+
             // Manual return button
             const inputManualBtn = document.getElementById('input-manual-btn');
             if (inputManualBtn) {
@@ -5430,6 +5442,7 @@
                 modalTitle.textContent = 'Tambah Alat Baru';
                 form.reset();
                 document.getElementById('alat-id').value = '';
+                document.getElementById('foto-preview').src = '';
                 document.getElementById('foto-preview-container').style.display = 'none';
             }
 
@@ -5467,7 +5480,7 @@
                 jurusanSelect.appendChild(option);
             });
 
-            if (currentUser && currentUser.role === 'guru') {
+            if (currentUser && (currentUser.role === 'guru' || currentUser.role === 'toolman')) {
                 jurusanSelect.value = currentUser.jurusan_id;
                 jurusanSelect.disabled = true;
             } else {
@@ -5565,6 +5578,14 @@
         }
 
         function showPeminjamanModal() {
+            // Reset form
+            const form = document.getElementById('form-peminjaman');
+            if (form) form.reset();
+            document.getElementById('peminjaman-id').value = '';
+            const searchInput = document.getElementById('cari-alat-peminjaman');
+            if (searchInput) searchInput.value = '';
+            document.getElementById('peminjaman-save-btn-text').textContent = 'Simpan Peminjaman';
+
             // Reset daftar alat yang dipinjam
             alatDipinjam = [];
             document.getElementById('daftar-alat-pinjam').innerHTML = '';
@@ -5592,7 +5613,7 @@
             nextWeek.setDate(today.getDate() + 7);
             document.getElementById('peminjaman-tanggal-kembali').value = nextWeek.toISOString().split('T')[0];
 
-            if (currentUser && currentUser.role === 'guru') {
+            if (currentUser && (currentUser.role === 'guru' || currentUser.role === 'toolman')) {
                 jurusanSelect.value = currentUser.jurusan_id;
                 jurusanSelect.disabled = true;
                 updateAlatDropdown();
@@ -5606,12 +5627,20 @@
         function updateAlatDropdown() {
             const jurusanId = parseInt(document.getElementById('peminjaman-jurusan').value);
             const alatSelect = document.getElementById('alat-pilihan');
+            const searchInput = document.getElementById('cari-alat-peminjaman');
+            const searchQuery = searchInput ? searchInput.value.toLowerCase() : '';
+
             alatSelect.innerHTML = '<option value="">Pilih Alat...</option>';
 
             if (!jurusanId) return;
 
-            // Filter alat berdasarkan jurusan dan ketersediaan
-            let filteredAlat = alat.filter(a => a.jurusan_id == jurusanId && a.jumlah_tersedia > 0);
+            // Filter alat berdasarkan jurusan, ketersediaan, dan pencarian
+            let filteredAlat = alat.filter(a => {
+                const matchJurusan = a.jurusan_id == jurusanId;
+                const matchStock = a.jumlah_tersedia > 0;
+                const matchSearch = a.nama.toLowerCase().includes(searchQuery) || a.kode_seri.toLowerCase().includes(searchQuery);
+                return matchJurusan && matchStock && matchSearch;
+            });
 
             filteredAlat.forEach(a => {
                 const option = document.createElement('option');
@@ -6131,21 +6160,7 @@
             }
         }
 
-        // ================== FUNGSI LOGIN ==================
-        // Setup login form event listener
-        const loginForm = document.getElementById('login-form');
-        if (loginForm) {
-            loginForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
 
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-                // Assuming there's a login function to call here
-                // For example: await login(username, password);
-                // This part of the login logic is not provided in the snippet.
-                // The snippet only shows the event listener setup.
-            });
-        }
 
         // ================== FUNGSI CRUD ==================
         async function saveAlat() {
@@ -6325,6 +6340,7 @@
                 kelas_unit: kelas,
                 tanggal_pinjam: pFound ? pFound.tanggal_pinjam : today,
                 tanggal_kembali_estimasi: tanggalKembali,
+                keperluan: keperluan,
                 items: alatDipinjam.map(item => ({
                     id: item.id,
                     jumlah: item.jumlah_pinjam
@@ -6359,6 +6375,9 @@
         }
 
         function showManualReturnModal() {
+            const form = document.getElementById('form-manual-return');
+            if (form) form.reset();
+
             const selectElement = document.getElementById('select-peminjaman');
             selectElement.innerHTML = '<option value="">Pilih peminjaman...</option>';
 
@@ -6443,6 +6462,13 @@
             });
             updateDaftarAlatPinjam();
 
+            const jurusanSelect = document.getElementById('peminjaman-jurusan');
+            if (currentUser && (currentUser.role === 'guru' || currentUser.role === 'toolman')) {
+                jurusanSelect.disabled = true;
+            } else {
+                jurusanSelect.disabled = false;
+            }
+
             showModal('peminjaman-modal');
         }
 
@@ -6503,7 +6529,7 @@
                 jurusanSelect.appendChild(option);
             });
 
-            if (currentUser && currentUser.role === 'guru') {
+            if (currentUser && (currentUser.role === 'guru' || currentUser.role === 'toolman')) {
                 jurusanSelect.value = currentUser.jurusan_id;
                 jurusanSelect.disabled = true;
             } else {
@@ -6721,11 +6747,15 @@
                 }
             });
 
-            // Handle Guru role restrictions
-            const isGuru = currentUser && currentUser.role === 'guru';
-            if (isGuru) {
-                roleSelect.value = 'toolman';
-                roleSelect.disabled = true;
+            // Handle Guru and ToolMan role restrictions
+            const isRestricted = currentUser && (currentUser.role === 'guru' || currentUser.role === 'toolman');
+            if (isRestricted) {
+                if (currentUser.role === 'guru') {
+                    roleSelect.value = 'toolman';
+                    roleSelect.disabled = true;
+                } else {
+                    roleSelect.disabled = false;
+                }
                 jurusanSelect.value = currentUser.jurusan_id;
                 jurusanSelect.disabled = true;
                 jurusanSelect.parentElement.style.display = 'block';
