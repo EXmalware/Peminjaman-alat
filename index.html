@@ -991,6 +991,39 @@
             background: var(--gray-light);
         }
 
+        /* Detail Peminjaman Modal Override (Always Light) */
+        #detail-peminjaman-modal .modal-content {
+            background: white !important;
+            color: #333 !important;
+        }
+
+        #detail-peminjaman-modal .modal-header {
+            background: #f1f3f9 !important;
+            border-bottom: 1px solid #ddd !important;
+        }
+
+        #detail-peminjaman-modal .modal-header h3 {
+            color: #333 !important;
+        }
+
+        #detail-peminjaman-modal .modal-close {
+            color: #666 !important;
+        }
+
+        #detail-peminjaman-modal .modal-body {
+            background: white !important;
+        }
+
+        #detail-peminjaman-modal #detail-peminjaman-content {
+            color: #333 !important;
+        }
+
+        #detail-peminjaman-modal #detail-peminjaman-content p,
+        #detail-peminjaman-modal #detail-peminjaman-content li,
+        #detail-peminjaman-modal #detail-peminjaman-content strong {
+            color: #333 !important;
+        }
+
         /* PERBAIKAN: Style untuk alat yang akan dipinjam */
         .alat-pinjam-item {
             display: flex;
@@ -1264,6 +1297,15 @@
             font-size: 13px;
         }
 
+        [data-theme="light"] .filter-group label {
+            color: white !important;
+            background: var(--primary);
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
         /* Export Options */
         .export-options {
             display: flex;
@@ -1360,6 +1402,61 @@
         #detail-peminjaman-content .detail-value {
             color: var(--dark);
             font-weight: 500;
+        }
+
+        /* Theme Switch Toggle */
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .theme-switch {
+            display: inline-block;
+            height: 24px;
+            position: relative;
+            width: 44px;
+        }
+
+        .theme-switch input {
+            display: none;
+        }
+
+        .slider {
+            background-color: rgba(255, 255, 255, 0.2);
+            bottom: 0;
+            cursor: pointer;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            background-color: #fff;
+            bottom: 4px;
+            content: "";
+            height: 16px;
+            left: 4px;
+            position: absolute;
+            transition: .4s;
+            width: 16px;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.slider {
+            background: var(--gradient-primary);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
         }
 
         /* PERBAIKAN: Settings Page - Fix form label visibility */
@@ -2141,15 +2238,22 @@
                         <span>Pengaturan</span>
                     </a></li>
                 <li style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
-                    <a href="#" class="nav-link" onclick="toggleTheme(); return false;">
-                        <i id="theme-icon" class="fas fa-moon"></i>
-                        <span id="theme-text">Mode Terang</span>
-                    </a>
+                    <div class="theme-switch-wrapper">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <i id="theme-icon" class="fas fa-moon"></i>
+                            <span id="theme-text">Mode Gelap</span>
+                        </div>
+                        <label class="theme-switch" for="checkbox">
+                            <input type="checkbox" id="checkbox" onchange="toggleTheme()" />
+                            <div class="slider"></div>
+                        </label>
+                    </div>
                 </li>
                 <li>
-                    <a href="#" class="nav-link" onclick="showUpdatesModal(); return false;">
+                    <a href="#" class="sidebar-action-link" onclick="showUpdatesModal(); return false;"
+                        style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: rgba(255, 255, 255, 0.8); text-decoration: none; transition: var(--transition); font-weight: 500; font-size: 14px;">
                         <i class="fas fa-bullhorn" style="color: #4cc9f0;"></i>
-                        <span>Ada Apa Baru?</span>
+                        <span>Apa yang Baru?</span>
                     </a>
                 </li>
                 <li>
@@ -3589,27 +3693,47 @@
         // Fungsi untuk load data dari spreadsheet
         async function loadDataFromSpreadsheet() {
             try {
-                // OPTIMASI: Show non-blocking toast
+                // OPTIMASI: Load dari cache dulu jika ada
+                const cachedData = localStorage.getItem('appDataCache');
+                if (cachedData) {
+                    const parsed = JSON.parse(cachedData);
+                    alat = parsed.alat || [];
+                    peminjaman = parsed.peminjaman || [];
+                    kategori = parsed.kategori || [];
+                    jurusan = parsed.jurusan || [];
+                    users = parsed.users || [];
+                    settings = parsed.settings || {};
+
+                    // Render UI dengan data cache agar cepat
+                    updateDashboardStats();
+                    loadAlatTable();
+                    loadPeminjamanTable();
+                }
+
                 showToast('Memuat Data', 'Mengambil data terbaru...', 'info', 2000);
 
-                // Load semua data sekaligus
-                const [alatRes, peminjamanRes, kategoriRes, jurusanRes, usersRes, settingsRes] = await Promise.all([
-                    loadAlatData(),
-                    loadPeminjamanData(),
-                    loadKategoriData(),
-                    loadJurusanData(),
-                    loadUsersData(),
-                    loadSettingsData()
-                ]);
+                const response = await callAPI('getAllData', {
+                    userRole: currentUser?.role,
+                    jurusanId: currentUser?.jurusan_id
+                });
 
-                if (alatRes.success) alat = alatRes.data;
-                if (peminjamanRes.success) peminjaman = peminjamanRes.data;
-                if (kategoriRes.success) kategori = kategoriRes.data;
-                if (jurusanRes.success) jurusan = jurusanRes.data;
-                if (usersRes.success) users = usersRes.data;
-                if (settingsRes.success) settings = settingsRes.data;
+                if (response.success) {
+                    alat = response.alat || [];
+                    peminjaman = response.peminjaman || [];
+                    kategori = response.kategori || [];
+                    jurusan = response.jurusan || [];
+                    users = response.users || [];
+                    settings = response.settings || {};
 
-                return true;
+                    // Simpan ke cache
+                    localStorage.setItem('appDataCache', JSON.stringify({
+                        alat, peminjaman, kategori, jurusan, users, settings,
+                        timestamp: new Date().getTime()
+                    }));
+
+                    return true;
+                }
+                return false;
             } catch (error) {
                 console.error('Error loading data:', error);
                 showToast('Gagal!', 'Gagal memuat data dari server', 'error');
@@ -3880,14 +4004,14 @@
 
             // Buat canvas untuk barcode
             const canvas = document.createElement('canvas');
-            canvas.width = 200;
-            canvas.height = 50;
+            canvas.width = 300; // Increased resolution
+            canvas.height = 80;
 
             // Generate barcode ke canvas
             JsBarcode(canvas, barcodeText, {
                 format: "CODE128",
-                width: 1.5,
-                height: 40,
+                width: 2, // Thicker bars
+                height: 60,
                 displayValue: false,
                 margin: 0
             });
@@ -3897,14 +4021,14 @@
             // Buat konten HTML untuk thermal
             return `
                 <div style="text-align: center; margin-bottom: 2mm;">
-                    <div style="font-weight: bold; font-size: 10px;">BUKTI PEMINJAMAN ALAT</div>
-                    <div style="font-size: 8px;">${settings.schoolName || 'SMKN 1 BUMIJAWA'}</div>
+                    <div style="font-weight: bold; font-size: 14px; color: black;">BUKTI PEMINJAMAN ALAT</div>
+                    <div style="font-size: 11px; font-weight: 600; color: black;">${settings.schoolName || 'SMKN 1 BUMIJAWA'}</div>
                 </div>
-                <hr>
-                <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 10px;">
+                <hr style="border: 0.5px solid black;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: black;">
                     <tr>
                         <td width="40%"><strong>No. Pinjam:</strong></td>
-                        <td>${peminjamanData.nomor_peminjaman}</td>
+                        <td><strong>${peminjamanData.nomor_peminjaman}</strong></td>
                     </tr>
                     <tr>
                         <td><strong>Nama:</strong></td>
@@ -3922,23 +4046,27 @@
                         <td><strong>Tgl Kembali:</strong></td>
                         <td>${formatDateThermal(peminjamanData.tanggal_kembali_estimasi)}</td>
                     </tr>
+                    <tr>
+                        <td><strong>Petugas:</strong></td>
+                        <td>${users.find(u => u.id == peminjamanData.created_by)?.nama || '-'}</td>
+                    </tr>
                 </table>
-                <hr>
-                <div style="margin-bottom: 2mm;"><strong>Alat yang Dipinjam:</strong></div>
-                <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 10px;">
+                <hr style="border: 0.5px solid black;">
+                <div style="margin-bottom: 2mm; font-size: 12px; color: black;"><strong>Alat yang Dipinjam:</strong></div>
+                <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: black;">
                     ${alatList}
                 </table>
-                <hr>
-                <div style="text-align: center; margin: 3mm 0;">
-                    <img src="${barcodeDataUrl}" style="width: 100%; height: auto; max-width: 200px;">
-                    <div style="font-size: 7px; margin-top: 1mm;">${barcodeText}</div>
+                <hr style="border: 0.5px solid black;">
+                <div style="text-align: center; margin: 4mm 0;">
+                    <img src="${barcodeDataUrl}" style="width: 100%; height: auto; max-width: 250px; filter: contrast(200%);">
+                    <div style="font-size: 10px; font-weight: bold; margin-top: 1mm; color: black;">${barcodeText}</div>
                 </div>
-                <hr>
-                <div style="text-align: center; font-size: 9px; margin-top: 3mm;">
+                <hr style="border: 0.5px solid black;">
+                <div style="text-align: center; font-size: 11px; color: black; font-weight: 500;">
                     <div>Simpan bukti ini untuk pengembalian</div>
                     <div>Terima kasih</div>
                 </div>
-                <div style="text-align: center; font-size: 8px; margin-top: 5mm;">
+                <div style="text-align: center; font-size: 9px; margin-top: 5mm; color: black;">
                     ${new Date().toLocaleString('id-ID')}
                 </div>
             `;
@@ -4047,11 +4175,11 @@
                         width: 58mm !important;
                         min-width: 58mm !important;
                         max-width: 58mm !important;
-                        padding: 3mm !important;
+                        padding: 2mm !important;
                         margin: 0 !important;
-                        font-size: 11px !important;
-                        line-height: 1.3 !important;
-                        font-family: 'Courier New', monospace !important;
+                        font-size: 12px !important;
+                        line-height: 1.2 !important;
+                        font-family: Arial, Helvetica, sans-serif !important;
                         background: white !important;
                         color: black !important;
                         border: none !important;
@@ -4062,8 +4190,9 @@
                     
                     #thermal-print-content table {
                         width: 100% !important;
-                        font-size: 10px !important;
+                        font-size: 12px !important;
                         border-collapse: collapse !important;
+                        color: black !important;
                     }
                     
                     #thermal-print-content td {
@@ -4128,18 +4257,29 @@
 
         function getDriveThumbnail(url) {
             if (!url) return '';
+
+            // Handle standard sharing links: https://drive.google.com/file/d/ID/view?usp=sharing
+            if (url.includes('drive.google.com/file/d/')) {
+                const id = url.split('/d/')[1].split('/')[0];
+                return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
+            }
+
+            // Handle uc?id= links
             if (url.includes('drive.google.com/uc?id=')) {
                 const idMatch = url.match(/id=([^&]+)/);
                 if (idMatch && idMatch[1]) {
-                    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1600`;
+                    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1000`;
                 }
             }
+
+            // Handle existing thumbnail links
             if (url.includes('drive.google.com/thumbnail?id=')) {
                 if (!url.includes('sz=')) {
-                    return url + '&sz=w1600';
+                    return url + '&sz=w1000';
                 }
-                return url.replace(/sz=[^&]+/, 'sz=w1600');
+                return url.replace(/sz=[^&]+/, 'sz=w1000');
             }
+
             return url;
         }
 
@@ -4333,9 +4473,6 @@
 
             // Sesuai korelasi role/page
             updateSidebarVisibility();
-
-            // Load data dari spreadsheet
-            await loadDataFromSpreadsheet();
 
             // Load data dari spreadsheet
             await loadDataFromSpreadsheet();
@@ -7499,8 +7636,8 @@
         // ================== ADVANCED FEATURES LOGIC ==================
         function toggleTheme() {
             const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme') || 'dark';
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const checkbox = document.getElementById('checkbox');
+            const newTheme = checkbox.checked ? 'light' : 'dark';
 
             if (newTheme === 'dark') {
                 html.removeAttribute('data-theme');
@@ -7515,11 +7652,17 @@
         function updateThemeIcon(theme) {
             const icon = document.getElementById('theme-icon');
             const text = document.getElementById('theme-text');
+            const checkbox = document.getElementById('checkbox');
+
             if (icon) {
-                icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+                icon.className = theme === 'light' ? 'fas fa-sun' : 'fas fa-moon';
+                icon.style.color = theme === 'light' ? '#ffb703' : '#4cc9f0';
             }
             if (text) {
-                text.textContent = theme === 'light' ? 'Mode Gelap' : 'Mode Terang';
+                text.textContent = theme === 'light' ? 'Mode Terang' : 'Mode Gelap';
+            }
+            if (checkbox) {
+                checkbox.checked = theme === 'light';
             }
         }
 
@@ -7530,7 +7673,8 @@
             } else {
                 document.documentElement.removeAttribute('data-theme');
             }
-            updateThemeIcon(savedTheme);
+            // Delay sedikit agar elemen checkbox sudah ter-render
+            setTimeout(() => updateThemeIcon(savedTheme), 100);
         }
 
         function showUpdatesModal() {
