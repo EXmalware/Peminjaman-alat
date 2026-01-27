@@ -3413,6 +3413,7 @@
         let settings = {};
         let stream = null; // Untuk kamera
         let currentPageAlat = 1;
+        const today = new Date().toISOString().split('T')[0];
 
         // Array untuk menyimpan alat yang akan dipinjam
         let alatDipinjam = [];
@@ -5587,9 +5588,8 @@
             });
 
             // Set tanggal kembali default
-            const today = new Date();
-            const nextWeek = new Date(today);
-            nextWeek.setDate(today.getDate() + 7);
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
             document.getElementById('peminjaman-tanggal-kembali').value = nextWeek.toISOString().split('T')[0];
 
             if (currentUser && currentUser.role === 'guru') {
