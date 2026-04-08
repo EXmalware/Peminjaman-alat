@@ -169,12 +169,23 @@ const app = {
         this.showLoading('Memverifikasi...');
 
         try {
-            const users = await db.getAll('users');
+            let users = await db.getAll('users');
             // Check credentials (ignoring accidental trailing spaces)
-            const user = users.find(u =>
+            let user = users.find(u =>
                 String(u.username || '').trim() === String(username).trim() &&
                 String(u.password || '').trim() === String(password).trim()
             );
+
+            // Fetch from server if user not found, and we are online (prevents empty DB login issues)
+            if (!user && navigator.onLine && username !== 'admin') {
+                this.showLoading('Mencari data pengguna baru di server...');
+                await db.fetchServerData();
+                users = await db.getAll('users');
+                user = users.find(u =>
+                    String(u.username || '').trim() === String(username).trim() &&
+                    String(u.password || '').trim() === String(password).trim()
+                );
+            }
 
             this.hideLoading();
 
@@ -759,6 +770,7 @@ const app = {
         this.closeModal('kategori-modal');
         this.showToast('Kategori berhasil disimpan', 'success');
         this.loadKategori();
+        this.populateKategoriSelect(); // Segarkan dropdown di modal Alat dan Bahan secara real-time
         db.syncToServer();
     },
 
@@ -1762,6 +1774,7 @@ const app = {
 
     openBahanModal: async function (id = null) {
         document.getElementById('bahan-form').reset();
+        await this.populateKategoriSelect();
 
         if (id) {
             document.getElementById('bahan-modal-title').textContent = 'Edit Data Bahan';
