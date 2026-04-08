@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PinjamAlat - Sistem Manajemen Peminjaman</title>
+    <meta name="theme-color" content="#1a1c29">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="./style-v3.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div id="app" class="app-container">
+        
+        <!-- Notification Toast -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- ================= LOGIN VIEW ================= -->
+        <div id="login-view" class="view section-active">
+            <div class="login-wrapper">
+                <div class="login-glass">
+                    <div class="brand">
+                        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png" alt="Logo" class="login-logo">
+                        <h1>PinjamAlat</h1>
+                        <p>Sistem Manajemen Inventaris & Peminjaman</p>
+                    </div>
+                    
+                    <form id="login-form">
+                        <div class="input-group">
+                            <i class="ph ph-user"></i>
+                            <input type="text" id="login-username" placeholder="Username" required>
+                        </div>
+                        <div class="input-group" style="position: relative;">
+                            <i class="ph ph-lock-key"></i>
+                            <input type="password" id="login-password" placeholder="Password" required style="padding-right: 2.8rem;">
+                            <i class="ph ph-eye" id="toggle-password" style="position: absolute; right: 1rem; left: auto; cursor: pointer; pointer-events: auto; padding: 0.5rem;" onclick="app.togglePassword()"></i>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            Masuk <i class="ph ph-arrow-right"></i>
+                        </button>
+                    </form>
+                    
+                    <div class="login-footer">
+                        <p>Belum punya akun? Hubungi Admin.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ================= END LOGIN VIEW ================= -->
+
+        <!-- ================= MAIN APP VIEW ================= -->
+        <div id="main-view" class="view hidden">
+            
+            <!-- Sidebar -->
+            <nav id="sidebar" class="sidebar collapsed-mobile">
+                <div class="sidebar-header">
+                    <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png" alt="Logo" class="sidebar-logo">
+                    <span class="sidebar-brand">PinjamAlat</span>
+                    <button id="close-sidebar-btn" class="sidebar-toggle-mobile"><i class="ph ph-x"></i></button>
+                </div>
+                
+                <ul class="nav-links">
+                    <li data-target="dashboard" class="active"><a href="#"><i class="ph ph-squares-four"></i> <span>Dashboard</span></a></li>
+                    <li data-target="peminjaman"><a href="#"><i class="ph ph-hand-coins"></i> <span>Peminjaman</span></a></li>
+                    <li data-target="riwayat"><a href="#"><i class="ph ph-clock-counter-clockwise"></i> <span>Riwayat Peminjaman</span></a></li>
+                    <li data-target="alat"><a href="#"><i class="ph ph-toolbox"></i> <span>Data Alat</span></a></li>
+                    <li data-target="bahan"><a href="#"><i class="ph ph-package"></i> <span>Bahan Praktik</span></a></li>
+                    <li data-target="bahan_keluar"><a href="#"><i class="ph ph-trend-down"></i> <span>Bahan Keluar</span></a></li>
+                    
+                    <!-- Admin Only Links -->
+                    <li data-target="kategori" class="admin-only"><a href="#"><i class="ph ph-folders"></i> <span>Kategori</span></a></li>
+                    <li data-target="users" class="admin-only"><a href="#"><i class="ph ph-users"></i> <span>Data User</span></a></li>
+                </ul>
+                
+                <div class="sidebar-footer">
+                    <button id="btn-logout" class="btn-logout"><i class="ph ph-sign-out"></i> <span>Logout</span></button>
+                </div>
+            </nav>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+                
+                <!-- Topbar -->
+                <header class="topbar">
+                    <div class="topbar-left">
+                        <button id="menu-toggle" class="menu-toggle"><i class="ph ph-list"></i></button>
+                        <h2 id="page-title">Dashboard</h2>
+                    </div>
+                    <div class="topbar-right" style="gap: 1rem;">
+                        <div id="main-network-status" class="badge hidden" style="border-radius:1rem; padding: 0.3rem 0.8rem; font-size:0.85rem; font-weight: 500; display:flex; align-items:center; gap:0.4rem;"></div>
+                        <button id="btn-sync" class="btn-icon" title="Sinkronisasi Data" onclick="app.backgroundSync()"><i class="ph ph-arrows-clockwise"></i></button>
+                        <div class="user-profile" onclick="app.openProfileModal()" style="cursor:pointer;" title="Pengaturan Profil">
+                            <img src="" alt="Profile" id="user-avatar" class="avatar default-avatar">
+                            <span id="user-name-display">User</span>
+                            <span id="user-role-badge" class="badge">Role</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Scrollable Content -->
+                <div class="content-wrapper">
+                    
+                    <!-- Dashboard Section -->
+                    <section id="dashboard-section" class="content-section section-active">
+                        <div class="dashboard-grid">
+                            <div class="stat-card glass-card">
+                                <div class="stat-icon bg-blue"><i class="ph ph-toolbox"></i></div>
+                                <div class="stat-info">
+                                    <h3>Total Alat</h3>
+                                    <h2 id="stat-total-alat">0</h2>
+                                </div>
+                            </div>
+                            <div class="stat-card glass-card">
+                                <div class="stat-icon bg-green"><i class="ph ph-check-circle"></i></div>
+                                <div class="stat-info">
+                                    <h3>Alat Tersedia</h3>
+                                    <h2 id="stat-tersedia">0</h2>
+                                </div>
+                            </div>
+                            <div class="stat-card glass-card">
+                                <div class="stat-icon bg-orange"><i class="ph ph-hand-coins"></i></div>
+                                <div class="stat-info">
+                                    <h3>Sedang Dipinjam</h3>
+                                    <h2 id="stat-dipinjam">0</h2>
+                                </div>
+                            </div>
+                            <div class="stat-card glass-card">
+                                <div class="stat-icon bg-indigo"><i class="ph ph-package"></i></div>
+                                <div class="stat-info">
+                                    <h3>Bahan Tersedia</h3>
+                                    <h2 id="stat-bahan-tersedia">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard-active glass-card mt-4">
+                            <div class="card-header flex-header">
+                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                    <div class="stat-icon bg-orange" style="width:30px; height:30px; font-size:0.9rem;"><i class="ph ph-warning-circle"></i></div>
+                                    <h3>Bahan Menipis / Habis</h3>
+                                </div>
+                                <button class="btn btn-sm btn-outline" onclick="app.navigate('bahan')">Kelola Bahan</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table-modern neat-table" id="dashboard-bahan-kritis-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Kode</th>
+                                            <th>Nama Bahan</th>
+                                            <th>Sisa Stok</th>
+                                            <th style="text-align: right;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Data populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-recent glass-card mt-4">
+                            <div class="card-header">
+                                <h3>10 Transaksi Terbaru</h3>
+                                <button class="btn btn-sm btn-outline" onclick="app.navigate('riwayat')">Lihat Riwayat</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table-modern" id="table-recent-peminjaman">
+                                    <thead>
+                                        <tr>
+                                            <th>TRX</th>
+                                            <th>Peminjam</th>
+                                            <th>Tanggal</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rendered by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Other sections will be dynamically handled or populated here -->
+                    <section id="peminjaman-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <div class="stat-icon bg-blue" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-hand-coins"></i></div>
+                                    <h3>Buat Peminjaman Baru</h3>
+                                </div>
+                            </div>
+                            <div class="modal-body p-lending-form">
+                                <form id="form-peminjaman">
+                                    <div class="form-grid-lending">
+                                        <div class="input-group">
+                                            <label><i class="ph ph-user"></i> Nama Peminjam</label>
+                                            <input type="text" id="pem-nama" placeholder="Masukkan nama lengkap..." required>
+                                        </div>
+                                        <div class="input-group">
+                                            <label><i class="ph ph-phone"></i> Nomor HP (WhatsApp)</label>
+                                            <input type="text" id="pem-hp" placeholder="Contoh: 08123456789" required>
+                                        </div>
+                                        <div class="input-group">
+                                            <label><i class="ph ph-graduation-cap"></i> Kelas / Unit</label>
+                                            <input type="text" id="pem-kelas" placeholder="Contoh: XI TKJ 1" required>
+                                        </div>
+                                        <div class="input-group">
+                                            <label><i class="ph ph-calendar"></i> Tanggal Kembali (Estimasi)</label>
+                                            <input type="date" id="pem-kembali" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="lending-tools-section mt-4">
+                                        <div class="section-header-flex">
+                                            <h4><i class="ph ph-toolbox"></i> Daftar Alat</h4>
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="app.openPilihAlatModal()">
+                                                <i class="ph ph-plus-circle"></i> Tambah Alat
+                                            </button>
+                                        </div>
+                                        <div class="table-responsive-minimal">
+                                            <table class="table-modern" id="table-cart">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Kode Seri</th>
+                                                        <th>Nama Alat</th>
+                                                        <th>Jumlah</th>
+                                                        <th style="width:50px;"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr id="cart-empty"><td colspan="4" style="text-align:center; color:var(--text-muted); padding: 2rem;">Belum ada alat dipilih</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="input-group mt-4">
+                                        <label><i class="ph ph-note"></i> Keterangan Tambahan (Opsional)</label>
+                                        <textarea id="pem-keterangan" rows="3" placeholder="Contoh: Keperluan praktek bengkel, kondisi alat awal baik..."></textarea>
+                                    </div>
+                                    
+                                    <div class="form-actions-lending mt-5">
+                                        <button type="submit" class="btn btn-primary btn-block">
+                                            <i class="ph ph-paper-plane-right"></i> Simpan Peminjaman
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Active Borrowings Card -->
+                        <div class="glass-card mt-5">
+                            <div class="card-header flex-header">
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <div class="stat-icon bg-orange" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-timer"></i></div>
+                                    <h3>Daftar Peminjaman Aktif</h3>
+                                </div>
+                                <span id="active-peminjaman-count" class="badge">0 Aktif</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table-modern neat-table" id="table-active-peminjaman">
+                                    <thead>
+                                        <tr>
+                                            <th>TRX</th>
+                                            <th>Peminjam</th>
+                                            <th>Batas Kembali</th>
+                                            <th>Item</th>
+                                            <th style="text-align: center;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rendered by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Section: Riwayat Peminjaman -->
+                    <section id="riwayat-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header flex-header">
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <div class="stat-icon bg-green" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-clock-counter-clockwise"></i></div>
+                                    <h3>Riwayat Peminjaman</h3>
+                                </div>
+                                <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayat()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table id="table-riwayat" class="table-modern neat-table">
+                                    <thead>
+                                        <tr>
+                                            <th>TRX</th>
+                                            <th>Peminjam</th>
+                                            <th>Tanggal Pinjam / Kembali</th>
+                                            <th>Keterangan</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="alat-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header flex-header">
+                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                    <div class="stat-icon bg-blue" style="width:30px; height:30px; font-size:0.9rem;"><i class="ph ph-toolbox"></i></div>
+                                    <h3>Data Inventaris Alat</h3>
+                                </div>
+                                <div style="display:flex; gap:0.5rem; align-items: center;">
+                                    <div class="search-box-embedded">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                        <input type="text" id="alat-search" placeholder="Cari nama atau kode alat..." onkeyup="app.loadAlat()" style="padding: 0.4rem 0.4rem 0.4rem 2rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); color: white; width: 200px; font-size: 0.85rem;">
+                                    </div>
+                                    <div style="display:flex; gap:0.25rem;">
+                                        <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportAlat('pdf')" title="Ekspor PDF"><i class="ph ph-file-pdf"></i></button>
+                                        <button class="btn btn-outline btn-sm" style="color:var(--success); border-color:var(--success);" onclick="app.exportAlat('excel')" title="Ekspor Excel"><i class="ph ph-file-xls"></i></button>
+                                    </div>
+                                    <button class="btn btn-outline btn-sm" onclick="app.toggleAlatView()" id="btn-view-toggle" title="Toggle Tampilan"><i class="ph ph-squares-four"></i></button>
+                                    <button class="btn btn-primary btn-sm" onclick="app.openAlatModal()"><i class="ph ph-plus"></i></button>
+                                </div>
+                            </div>
+                            <div id="alat-table-container" class="table-responsive">
+                                <table class="table-modern" id="table-alat">
+                                    <thead>
+                                        <tr>
+                                            <th>Foto</th>
+                                            <th>Kode Seri</th>
+                                            <th>Nama Alat</th>
+                                            <th>Kategori</th>
+                                            <th>Tersedia / Total</th>
+                                            <th>Kondisi</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            
+                            <div id="alat-grid-container" class="alat-grid-wrapper hidden" style="padding: 1.5rem;">
+                                <div class="alat-grid" id="grid-alat" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem;">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                            
+                            <!-- Pagination Controls -->
+                            <div class="pagination-controls" id="alat-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);">
+                                <span id="page-total-items" style="font-size: 0.85rem; color: var(--text-muted);">Menampilkan 0 item</span>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <button class="btn btn-outline btn-sm" id="btn-prev-page" onclick="app.changePage(-1)"><i class="ph ph-caret-left"></i> Prev</button>
+                                    <span id="page-info" style="font-size: 0.9rem; margin: 0 0.5rem;">1 / 1</span>
+                                    <button class="btn btn-outline btn-sm" id="btn-next-page" onclick="app.changePage(1)">Next <i class="ph ph-caret-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Section: Bahan Praktik -->
+                    <section id="bahan-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header flex-header">
+                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                    <div class="stat-icon bg-indigo" style="width:30px; height:30px; font-size:0.9rem; background: var(--warning);"><i class="ph ph-package"></i></div>
+                                    <h3>Data Bahan Praktik</h3>
+                                </div>
+                                <div style="display:flex; gap:0.5rem; align-items: center;">
+                                    <div class="search-box-embedded">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                        <input type="text" id="bahan-search" placeholder="Cari bahan..." onkeyup="app.loadBahan()" style="padding: 0.4rem 0.4rem 0.4rem 2rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); color: white; width: 200px; font-size: 0.85rem;">
+                                    </div>
+                                    <button class="btn btn-outline btn-sm" onclick="app.exportBahanPDF()" title="Ekspor Data Bahan ke PDF" style="border-color: var(--danger); color: var(--danger);"><i class="ph ph-file-pdf"></i></button>
+                                    <button class="btn btn-primary btn-sm" onclick="app.openBahanModal()"><i class="ph ph-plus"></i></button>
+                                </div>
+                            </div>
+                            <div id="bahan-table-container" class="table-responsive">
+                                <table class="table-modern" id="table-bahan">
+                                    <thead>
+                                        <tr>
+                                            <th>ID/Kode</th>
+                                            <th>Nama Bahan</th>
+                                            <th>Kategori</th>
+                                            <th>Satuan</th>
+                                            <th>Stok Tersedia</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Section: Riwayat Bahan Keluar -->
+                    <section id="bahan_keluar-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header flex-header">
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <div class="stat-icon bg-red" style="width:36px; height:36px; font-size:1.1rem; background: var(--danger);"><i class="ph ph-trend-down"></i></div>
+                                    <h3>Riwayat Pengeluaran Bahan</h3>
+                                </div>
+                                <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayatBahan()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table id="table-bahan-keluar" class="table-modern neat-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tanggal</th>
+                                            <th>Nama Bahan</th>
+                                            <th>Jumlah Keluar</th>
+                                            <th>Satuan</th>
+                                            <th>Status / Keterangan</th>
+                                            <th>Petugas</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section id="kategori-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h3>Kategori Alat</h3>
+                                <button class="btn btn-primary btn-sm" onclick="app.openKategoriModal()"><i class="ph ph-plus"></i> Tambah Kategori</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table-modern neat-table" id="table-kategori">
+                                    <thead>
+                                        <tr>
+                                            <th>Nama Kategori</th>
+                                            <th>Jurusan</th>
+                                            <th style="text-align: right;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section id="users-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h3>Data User</h3>
+                                <button class="btn btn-primary btn-sm" onclick="app.openUserModal()"><i class="ph ph-plus"></i> Tambah User</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table-modern neat-table" id="table-users">
+                                    <thead>
+                                        <tr>
+                                            <th>Username</th>
+                                            <th>Nama Lengkap</th>
+                                            <th>Role</th>
+                                            <th>Jurusan</th>
+                                            <th style="text-align: right;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rendered by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                    
+                </div>
+            </main>
+            
+        </div>
+        <!-- ================= END MAIN APP VIEW ================= -->
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <p id="loading-text">Memuat...</p>
+        </div>
+
+        <!-- Modals -->
+        
+        <!-- Pilihan Alat Modal -->
+        <div id="pilih-alat-modal" class="modal hidden">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h3>Pilih Alat</h3>
+                    <button class="btn-icon" onclick="app.closeModal('pilih-alat-modal')"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group">
+                        <input type="text" id="search-alat" placeholder="Cari alat..." onkeyup="app.filterPilihAlat()">
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="table-modern" id="table-pilih-alat">
+                            <thead><tr><th>Info</th><th>Tersedia</th><th>Aksi</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alat Modal -->
+        <div id="alat-modal" class="modal hidden">
+            <div class="modal-content glass-card" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3 id="alat-modal-title">Tambah Alat</h3>
+                    <button class="btn-icon" onclick="app.closeModal('alat-modal')"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="alat-form">
+                        <input type="hidden" id="alat-id">
+                        <input type="hidden" id="alat-foto-url">
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <!-- Photo Upload Area -->
+                            <div style="width: 150px; text-align: center;">
+                                <div id="foto-preview" style="width:150px; height:150px; background:rgba(255,255,255,0.05); border: 2px dashed var(--border-color); border-radius: var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom: 0.5rem; overflow:hidden;">
+                                    <i class="ph ph-image" style="font-size: 3rem; color: var(--text-muted)"></i>
+                                </div>
+                                <input type="file" id="alat-foto-file" accept="image/*" style="display:none;" onchange="app.handleFotoUpload(event)">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('alat-foto-file').click()">Pilih Foto</button>
+                            </div>
+                            
+                            <!-- Form Fields -->
+                            <div style="flex: 1;">
+                                <div class="input-group">
+                                    <label>Kode Seri Alat</label>
+                                    <input type="text" id="alat-kode" required>
+                                </div>
+                                <div class="input-group">
+                                    <label>Nama Alat</label>
+                                    <input type="text" id="alat-nama" required>
+                                </div>
+                                <div class="input-group" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+                                    <div>
+                                        <label style="display:flex; justify-content:space-between; align-items:center;">Kategori
+                                            <button type="button" class="btn-icon" style="color:var(--primary); background:none; border:none; font-size:0.85rem; cursor:pointer;" onclick="app.openKategoriModal()"><i class="ph ph-plus-circle"></i> Baru</button>
+                                        </label>
+                                        <select id="alat-kategori" required></select>
+                                    </div>
+                                    <div>
+                                        <label>Jurusan</label>
+                                        <input type="number" id="alat-jurusan">
+                                    </div>
+                                </div>
+                                <div class="input-group" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+                                    <div>
+                                        <label>Jumlah Total</label>
+                                        <input type="number" id="alat-total" required>
+                                    </div>
+                                    <div>
+                                        <label>Tersedia</label>
+                                        <input type="number" id="alat-tersedia" required>
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label>Kondisi</label>
+                                    <select id="alat-kondisi">
+                                        <option value="Baik">Baik</option>
+                                        <option value="Rusak Ringan">Rusak Ringan</option>
+                                        <option value="Rusak Berat">Rusak Berat</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="app.closeModal('alat-modal')">Batal</button>
+                            <button type="submit" class="btn btn-primary" id="btn-save-alat">Simpan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Modal -->
+        <div id="profile-modal" class="modal hidden">
+            <div class="modal-content glass-card" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3>Pengaturan Profil</h3>
+                    <button class="btn-icon" onclick="app.closeModal('profile-modal')"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="profile-form">
+                        <div style="display: flex; gap: 1rem;">
+                            <div style="width: 120px; text-align: center;">
+                                <div id="prof-foto-preview" style="width:120px; height:120px; border-radius: 50%; background:rgba(255,255,255,0.05); border: 2px solid var(--primary); display:flex; align-items:center; justify-content:center; margin-bottom: 0.5rem; overflow:hidden;">
+                                    <i class="ph ph-user" style="font-size: 3rem; color: var(--text-muted)" id="prof-foto-icon"></i>
+                                    <img src="" id="prof-foto-img" style="width:100%; height:100%; object-fit:cover; display:none;">
+                                </div>
+                                <input type="file" id="prof-foto-file" accept="image/*" style="display:none;" onchange="app.handleProfFotoUpload(event)">
+                                <span id="prof-foto-url" style="display:none"></span>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('prof-foto-file').click()">Ubah Foto</button>
+                            </div>
+                            <div style="flex: 1;">
+                                <div class="input-group">
+                                    <label>Nama Lengkap</label>
+                                    <input type="text" id="prof-nama" required>
+                                </div>
+                                <div class="input-group">
+                                    <label>Username</label>
+                                    <input type="text" id="prof-username" required>
+                                </div>
+                                <div class="input-group">
+                                    <label>Password Baru</label>
+                                    <input type="password" id="prof-password" placeholder="(Kosongkan jika tidak diubah)">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="app.closeModal('profile-modal')">Batal</button>
+                            <button type="submit" class="btn btn-primary" id="btn-save-profile">Simpan Profil</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kategori Modal -->
+        <div id="kategori-modal" class="modal hidden">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h3 id="kategori-modal-title">Tambah Kategori</h3>
+                    <button class="btn-icon" onclick="app.closeModal('kategori-modal')"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="kategori-form">
+                        <input type="hidden" id="kat-id">
+                        <div class="input-group">
+                            <label>Nama Kategori</label>
+                            <input type="text" id="kat-nama" required>
+                        </div>
+                        <div class="input-group">
+                            <label>ID Jurusan</label>
+                            <input type="number" id="kat-jurusan">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="app.closeModal('kategori-modal')">Batal</button>
+                            <button type="submit" class="btn btn-primary">Simpan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="user-modal" class="modal hidden">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h3 id="user-modal-title">Tambah User</h3>
+                    <button class="btn-icon" onclick="app.closeModal('user-modal')"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="user-form">
+                        <input type="hidden" id="user-id">
+                        <div class="input-group">
+                            <label>Username</label>
+                            <input type="text" id="user-username" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Password</label>
+                            <input type="password" id="user-password" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Nama Lengkap</label>
+                            <input type="text" id="user-fullname" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Role</label>
+                            <select id="user-role" required>
+                                <option value="Admin">Admin</option>
+                                <option value="Guru">Guru</option>
+                                <option value="Toolman">Toolman</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>ID Jurusan</label>
+                            <input type="number" id="user-jurusan">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="app.closeModal('user-modal')">Batal</button>
+                            <button type="submit" class="btn btn-primary">Simpan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Detail Peminjaman Modal Enhanced -->
+    <div id="detail-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="max-width: 550px;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div class="stat-icon bg-blue" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-receipt"></i></div>
+                    <div>
+                        <h3 id="detail-modal-title">Rincian Transaksi</h3>
+                        <p id="detail-trx-no" style="font-size: 0.8rem; margin:0; opacity:0.7;">TRX-0000000000</p>
+                    </div>
+                </div>
+                <button class="btn-icon" onclick="app.closeModal('detail-modal')"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div id="detail-info-grid" class="detail-body-grid">
+                    <!-- Info grid populated by JS -->
+                </div>
+
+                <div class="detail-items-section mt-4">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="ph ph-toolbox"></i> Daftar Alat Dipinjam
+                    </h4>
+                    <div class="detail-items-container" id="detail-items">
+                        <!-- Items populated by JS -->
+                    </div>
+                </div>
+
+                <div id="detail-note-area" class="mt-4 p-3" style="background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--primary);">
+                    <small style="color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Catatan / Keterangan:</small>
+                    <p id="detail-note" style="margin:0; font-size: 0.9rem;">-</p>
+                </div>
+                
+                <div id="detail-petugas-info" class="mt-4" style="text-align: right; opacity: 0.7; font-size: 0.85rem;">
+                    Petugas: <span id="detail-petugas">Admin</span>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: rgba(0,0,0,0.1); margin-top: 0; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-outline" onclick="app.closeModal('detail-modal')">Tutup</button>
+                <button type="button" class="btn btn-primary" id="btn-print-from-detail">
+                    <i class="ph ph-printer"></i> Cetak Struk
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bahan Modal (CRUD Bahan) -->
+    <div id="bahan-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="bahan-modal-title">Tambah Data Bahan</h3>
+                <button class="btn-icon" onclick="app.closeModal('bahan-modal')"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="bahan-form">
+                    <input type="hidden" id="bahan-id">
+                    
+                    <div class="input-group">
+                        <label>ID/Kode Bahan</label>
+                        <input type="text" id="bahan-kode" placeholder="Bisa auto-generate, opsional" disabled>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Nama Bahan</label>
+                        <input type="text" id="bahan-nama" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">Kategori
+                            <button type="button" class="btn-icon" style="color:var(--primary); background:none; border:none; font-size:0.85rem; cursor:pointer;" onclick="app.openKategoriModal()"><i class="ph ph-plus-circle"></i> Baru</button>
+                        </label>
+                        <select id="bahan-kategori" required>
+                            <!-- Diisi fungsi JS -->
+                        </select>
+                    </div>
+                    
+                    <div style="display:flex; gap:1rem;">
+                        <div class="input-group" style="flex:1;">
+                            <label>Satuan (Misal: Pcs, Lembar)</label>
+                            <input type="text" id="bahan-satuan" required>
+                        </div>
+                        <div class="input-group" style="flex:1;">
+                            <label>Stok Total</label>
+                            <input type="number" id="bahan-stok" required min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="input-group" style="margin-top:-1rem;">
+                        <label>Peringatan Stok Minimum</label>
+                        <input type="number" id="bahan-stok-minimum" required min="0" value="5">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Keterangan Tambahan (Opsional)</label>
+                        <textarea id="bahan-keterangan" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="modal-footer" style="padding: 1rem 0 0 0;">
+                        <button type="button" class="btn btn-outline" onclick="app.closeModal('bahan-modal')">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bahan Checkout Modal (Alokasi Pemakaian) -->
+    <div id="bahan-checkout-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 style="display:flex; align-items:center; gap:0.5rem;"><i class="ph ph-trend-down" style="color:var(--danger);"></i> Input Pengeluaran</h3>
+                <button class="btn-icon" onclick="app.closeModal('bahan-checkout-modal')"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="bahan-checkout-form">
+                    <input type="hidden" id="checkout-bahan-id">
+                    
+                    <div class="p-3 mb-4" style="background: rgba(0,0,0,0.2); border-radius:8px; border-left:4px solid var(--danger);">
+                        <h4 id="checkout-nama-bahan" style="margin-bottom:0.25rem;">Nama Bahan</h4>
+                        <p style="margin:0; font-size:0.85rem; color:var(--text-muted);">Sisa Tersedia: <strong id="checkout-sisa-stok" style="color:var(--success);">0</strong> <span id="checkout-satuan"></span></p>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Jumlah Digunakan (Keluar)</label>
+                        <input type="number" id="checkout-jumlah" required min="1">
+                        <small style="color:var(--warning);" id="checkout-warning"></small>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Status / Keterangan Pemakaian</label>
+                        <textarea id="checkout-status" rows="2" placeholder="Contoh: Dipakai untuk praktek kelistrikan kelas XII" required></textarea>
+                    </div>
+                    
+                    <div class="modal-footer" style="padding: 1.5rem 0 0 0;">
+                        <button type="button" class="btn btn-outline" onclick="app.closeModal('bahan-checkout-modal')">Batal</button>
+                        <button type="submit" class="btn btn-danger" style="background:var(--danger); border-color:var(--danger);">Konfirmasi Keluar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dialog Modal (Custom Alert/Confirm) -->
+    <div id="dialog-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="max-width: 400px; text-align: center;">
+            <div class="modal-body" style="padding: 2.5rem 2rem;">
+                <div id="dialog-icon" style="font-size: 3.5rem; color: var(--primary); margin-bottom: 1rem;">
+                    <i class="ph ph-question"></i>
+                </div>
+                <h3 id="dialog-title" style="margin-bottom: 0.5rem; font-size: 1.25rem;">Konfirmasi</h3>
+                <p id="dialog-message" style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; line-height: 1.5;">Apakah Anda yakin?</p>
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button type="button" class="btn btn-outline" id="btn-dialog-cancel" style="min-width: 100px;">Batal</button>
+                    <button type="button" class="btn btn-primary" id="btn-dialog-confirm" style="min-width: 100px;">Ya</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/localforage@1.10.0/dist/localforage.min.js"></script>
+    
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script src="./logo.js"></script>
+    <script src="./db.js"></script>
+    <script src="./app-v3.js"></script>
+</body>
+</html>
