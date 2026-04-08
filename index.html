@@ -29,33 +29,59 @@
 
         <!-- ================= LOGIN VIEW ================= -->
         <div id="login-view" class="view section-active">
-            <div class="login-wrapper">
-                <div class="login-glass">
-                    <div class="brand">
-                        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png" alt="Logo" class="login-logo">
-                        <h1>PinjamAlat</h1>
-                        <p>Sistem Manajemen Inventaris & Peminjaman</p>
-                    </div>
-                    
-                    <form id="login-form">
-                        <div class="input-group">
-                            <i class="ph ph-user"></i>
-                            <input type="text" id="login-username" placeholder="Username" required>
+            
+            <!-- Animated Background Elements -->
+            <div class="login-bg-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+            </div>
+
+            <div class="login-split-container">
+                
+                <!-- Sisi Kiri (Branding/Hero) -->
+                <div class="login-split-left">
+                    <div class="login-hero-content">
+                        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png" alt="Logo" class="hero-logo">
+                        <h1 class="hero-title">Selamat Datang di <br><span>PinjamAlat</span></h1>
+                        <p class="hero-subtitle">Platform Canggih Manajemen Peminjaman Alat dan Bahan Praktik Anda.</p>
+                        
+                        <div class="hero-features">
+                            <div class="feature-item"><i class="ph ph-cloud-check"></i> Sinkronisasi Cloud Auto</div>
+                            <div class="feature-item"><i class="ph ph-lightning"></i> Mode Akses Super Cepat</div>
+                            <div class="feature-item"><i class="ph ph-chart-bar"></i> Pemantauan Real-Time</div>
                         </div>
-                        <div class="input-group" style="position: relative;">
-                            <i class="ph ph-lock-key"></i>
-                            <input type="password" id="login-password" placeholder="Password" required style="padding-right: 2.8rem;">
-                            <i class="ph ph-eye" id="toggle-password" style="position: absolute; right: 1rem; left: auto; cursor: pointer; pointer-events: auto; padding: 0.5rem;" onclick="app.togglePassword()"></i>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-block">
-                            Masuk <i class="ph ph-arrow-right"></i>
-                        </button>
-                    </form>
-                    
-                    <div class="login-footer">
-                        <p>Belum punya akun? Hubungi Admin.</p>
                     </div>
                 </div>
+
+                <!-- Sisi Kanan (Form Login) -->
+                <div class="login-split-right">
+                    <div class="login-glass-panel">
+                        <div class="form-header">
+                            <h2>Akses Panel</h2>
+                            <p>Masuk menggunakan kredensial akun Anda.</p>
+                        </div>
+                        <form id="login-form">
+                            <div class="input-group">
+                                <input type="text" id="login-username" placeholder="Username / ID Bekerja" required>
+                                <i class="ph ph-user"></i>
+                            </div>
+                            <div class="input-group" style="position: relative;">
+                                <input type="password" id="login-password" placeholder="Password Akses" required style="padding-right: 2.8rem;">
+                                <i class="ph ph-lock-key"></i>
+                                <i class="ph ph-eye" id="toggle-password" style="position: absolute; right: 1rem; left: auto; cursor: pointer; pointer-events: auto; padding: 0.5rem;" onclick="app.togglePassword()"></i>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block btn-login-glow">
+                                <span>Masuk Sekarang</span> <i class="ph ph-arrow-right"></i>
+                            </button>
+                        </form>
+                        
+                        <div class="login-footer">
+                            <p>Mengalami masalah saat login? <br><b>Hubungi Administrator SIstem</b></p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
         <!-- ================= END LOGIN VIEW ================= -->
@@ -342,11 +368,11 @@
                                     <thead>
                                         <tr>
                                             <th>Foto</th>
-                                            <th>Kode Seri</th>
-                                            <th>Nama Alat</th>
-                                            <th>Kategori</th>
-                                            <th>Tersedia / Total</th>
-                                            <th>Kondisi</th>
+                                            <th onclick="app.sortAlat('kode_seri')" style="cursor:pointer; user-select:none;">Kode Seri <i id="sort-icon-alat-kode_seri" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortAlat('nama')" style="cursor:pointer; user-select:none;">Nama Alat <i id="sort-icon-alat-nama" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortAlat('kategori_id')" style="cursor:pointer; user-select:none;">Kategori <i id="sort-icon-alat-kategori_id" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortAlat('jumlah_tersedia')" style="cursor:pointer; user-select:none;">Tersedia / Total <i id="sort-icon-alat-jumlah_tersedia" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortAlat('kondisi')" style="cursor:pointer; user-select:none;">Kondisi <i id="sort-icon-alat-kondisi" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
                                             <th>Aksi</th>
                                         </tr>
                                     </thead>
@@ -393,11 +419,11 @@
                                 <table class="table-modern" id="table-bahan">
                                     <thead>
                                         <tr>
-                                            <th>ID/Kode</th>
-                                            <th>Nama Bahan</th>
-                                            <th>Kategori</th>
-                                            <th>Satuan</th>
-                                            <th>Stok Tersedia</th>
+                                            <th onclick="app.sortBahan('id')" style="cursor:pointer; user-select:none;">ID/Kode <i id="sort-icon-id" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortBahan('nama')" style="cursor:pointer; user-select:none;">Nama Bahan <i id="sort-icon-nama" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortBahan('kategori')" style="cursor:pointer; user-select:none;">Kategori <i id="sort-icon-kategori" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortBahan('satuan')" style="cursor:pointer; user-select:none;">Satuan <i id="sort-icon-satuan" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortBahan('stok')" style="cursor:pointer; user-select:none;">Stok Tersedia <i id="sort-icon-stok" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
                                             <th>Aksi</th>
                                         </tr>
                                     </thead>

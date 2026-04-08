@@ -14,7 +14,9 @@ const app = {
         },
         alatViewMode: 'list',
         alatPage: 1,
-        alatLimit: 50
+        alatLimit: 50,
+        alatSort: { column: '', dir: 'asc' },
+        bahanSort: { column: '', dir: 'asc' }
     },
 
     init: async function () {
@@ -255,6 +257,7 @@ const app = {
         const roleBadge = document.getElementById('user-role-badge');
         roleBadge.textContent = this.state.user.role;
         roleBadge.style.background = this.state.user.role === 'Admin' ? 'var(--primary)' : 'var(--success)';
+        roleBadge.style.color = this.state.user.role === 'Admin' ? '#fff' : '#000';
         if (this.state.user.foto) {
             document.getElementById('user-avatar').src = this.getDriveImageUrl(this.state.user.foto);
         }
@@ -796,14 +799,61 @@ const app = {
         if (this.state.alatPage < 1) this.state.alatPage = 1;
         this.loadAlat();
     },
+    sortAlat: function(col) {
+        if (this.state.alatSort.column === col) {
+            this.state.alatSort.dir = this.state.alatSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.state.alatSort.column = col;
+            this.state.alatSort.dir = 'asc';
+        }
+
+        // Reset visual icons
+        const uiCols = ['kode_seri', 'nama', 'kategori_id', 'jumlah_tersedia', 'kondisi'];
+        uiCols.forEach(c => {
+            const icon = document.getElementById(`sort-icon-alat-${c}`);
+            if (icon) {
+                if (c === col) {
+                    icon.style.display = 'inline-block';
+                    icon.className = this.state.alatSort.dir === 'asc' ? 'ph ph-caret-circle-up' : 'ph ph-caret-circle-down';
+                    icon.style.color = 'var(--primary)';
+                } else {
+                    icon.style.display = 'none';
+                }
+            }
+        });
+
+        this.loadAlat();
+    },
 
     loadAlat: async function () {
         const query = document.getElementById('alat-search')?.value.toLowerCase() || '';
         const rawAlat = await db.getAll('alat');
-        const alatDataFiltered = this.getFilteredData(rawAlat).filter(a =>
+        let alatDataFiltered = this.getFilteredData(rawAlat).filter(a =>
             a.nama.toLowerCase().includes(query) ||
             a.kode_seri.toLowerCase().includes(query)
         );
+
+        // --- Proses Sorting Alat ---
+        const sc = this.state.alatSort.column;
+        const sdir = this.state.alatSort.dir;
+        
+        if (sc) {
+            alatDataFiltered.sort((a, b) => {
+                let valA, valB;
+                if (sc === 'kode_seri') { valA = a.kode_seri || ''; valB = b.kode_seri || ''; }
+                else if (sc === 'nama') { valA = a.nama || ''; valB = b.nama || ''; }
+                else if (sc === 'kategori_id') { valA = String(a.kategori_id || ''); valB = String(b.kategori_id || ''); }
+                else if (sc === 'jumlah_tersedia') { valA = Number(a.jumlah_tersedia || 0); valB = Number(b.jumlah_tersedia || 0); }
+                else if (sc === 'kondisi') { valA = a.kondisi || ''; valB = b.kondisi || ''; }
+                
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return sdir === 'asc' ? -1 : 1;
+                if (valA > valB) return sdir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
 
         // Pagination logic
         const totalItems = alatDataFiltered.length;
@@ -1359,7 +1409,7 @@ const app = {
         }
 
         data.forEach(p => {
-            let statusBadge = p.status === 'DIPINJAM' ? '<span class="badge" style="background:var(--warning)">DIPINJAM</span>' : '<span class="badge" style="background:var(--success)">KEMBALI</span>';
+            let statusBadge = p.status === 'DIPINJAM' ? '<span class="badge" style="background:var(--warning); color:#000;">DIPINJAM</span>' : '<span class="badge" style="background:var(--success); color:#fff;">KEMBALI</span>';
             const tr = document.createElement('tr');
 
             // Format Dates
@@ -1729,10 +1779,45 @@ const app = {
         }
 
         if (search) {
-            bahanRaw = bahanRaw.filter(b =>
-                (b.Nama_Barang || '').toLowerCase().includes(search) ||
-                (b.ID_Barang || '').toLowerCase().includes(search)
-            );
+            bahanRaw = bahanRaw.filter(b => {
+                const idb = b.ID_Barang || b['ID Barang'] || b.ID || b.id || b.id_barang || b.Kode || '';
+                const namab = b.Nama_Barang || b['Nama Barang'] || b.Nama || b.nama || b.Barang || '';
+                return idb.toLowerCase().includes(search) || namab.toLowerCase().includes(search);
+            });
+        }
+
+        // --- Proses Sorting ---
+        const sc = this.state.bahanSort.column;
+        const sdir = this.state.bahanSort.dir;
+        
+        if (sc) {
+            bahanRaw.sort((a, b) => {
+                let valA, valB;
+                
+                if (sc === 'id') {
+                    valA = a.ID_Barang || a['ID Barang'] || a.ID || a.id || a.id_barang || a.Kode || '';
+                    valB = b.ID_Barang || b['ID Barang'] || b.ID || b.id || b.id_barang || b.Kode || '';
+                } else if (sc === 'nama') {
+                    valA = a.Nama_Barang || a['Nama Barang'] || a.Nama || a.nama || a.Barang || '';
+                    valB = b.Nama_Barang || b['Nama Barang'] || b.Nama || b.nama || b.Barang || '';
+                } else if (sc === 'kategori') {
+                    valA = a.Kategori || a.kategori || '';
+                    valB = b.Kategori || b.kategori || '';
+                } else if (sc === 'satuan') {
+                    valA = a.Satuan || a.satuan || '';
+                    valB = b.Satuan || b.satuan || '';
+                } else if (sc === 'stok') {
+                    valA = Number(a.Stok || a.stok || a.Jumlah || a.jumlah || 0);
+                    valB = Number(b.Stok || b.stok || b.Jumlah || b.jumlah || 0);
+                }
+
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return sdir === 'asc' ? -1 : 1;
+                if (valA > valB) return sdir === 'asc' ? 1 : -1;
+                return 0;
+            });
         }
 
         const tbody = document.querySelector('#table-bahan tbody');
@@ -1782,6 +1867,32 @@ const app = {
             tbody.appendChild(tr);
         });
         this.hideLoading();
+    },
+
+    sortBahan: function(col) {
+        if (this.state.bahanSort.column === col) {
+            this.state.bahanSort.dir = this.state.bahanSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.state.bahanSort.column = col;
+            this.state.bahanSort.dir = 'asc';
+        }
+
+        // Reset visual icons
+        const uiCols = ['id', 'nama', 'kategori', 'satuan', 'stok'];
+        uiCols.forEach(c => {
+            const icon = document.getElementById(`sort-icon-${c}`);
+            if (icon) {
+                if (c === col) {
+                    icon.style.display = 'inline-block';
+                    icon.className = this.state.bahanSort.dir === 'asc' ? 'ph ph-caret-circle-up' : 'ph ph-caret-circle-down';
+                    icon.style.color = 'var(--primary)';
+                } else {
+                    icon.style.display = 'none';
+                }
+            }
+        });
+
+        this.loadBahan();
     },
 
     openBahanModal: async function (id = null) {
