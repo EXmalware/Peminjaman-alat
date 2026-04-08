@@ -426,15 +426,29 @@ const app = {
             }
         }
 
-        // Indikator elegan untuk halaman Login (Glassmorphism Color Shift)
-        const loginGlass = document.querySelector('.login-glass');
-        if (loginGlass) {
+        // Indikator elegan untuk halaman Login Split Screen
+        const loginLeft = document.querySelector('.login-split-left');
+        const loginBadge = document.getElementById('login-offline-badge');
+        const shapes = document.querySelectorAll('.login-bg-shapes .shape');
+        const heroTitleSpan = document.querySelector('.hero-title span');
+        
+        if (loginLeft) {
             if (!isOnline) {
-                loginGlass.style.boxShadow = '0 8px 32px 0 rgba(231, 76, 60, 0.25)';
-                loginGlass.style.border = '1px solid rgba(231, 76, 60, 0.4)';
+                // Berubah ke tema merah/offline
+                if (loginBadge) loginBadge.classList.remove('hidden');
+                if (shapes[0]) shapes[0].style.background = 'var(--danger)';
+                if (shapes[1]) shapes[1].style.background = '#991b1b'; // Dark red
+                if (shapes[2]) shapes[2].style.background = '#7f1d1d'; // Darker red
+                if (heroTitleSpan) heroTitleSpan.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+                if (heroTitleSpan) heroTitleSpan.style.webkitBackgroundClip = 'text';
             } else {
-                loginGlass.style.boxShadow = '0 8px 32px 0 rgba(46, 204, 113, 0.25)';
-                loginGlass.style.border = '1px solid rgba(46, 204, 113, 0.4)';
+                // Normal theme
+                if (loginBadge) loginBadge.classList.add('hidden');
+                if (shapes[0]) shapes[0].style.background = '';
+                if (shapes[1]) shapes[1].style.background = '';
+                if (shapes[2]) shapes[2].style.background = '';
+                if (heroTitleSpan) heroTitleSpan.style.background = '';
+                if (heroTitleSpan) heroTitleSpan.style.webkitBackgroundClip = '';
             }
         }
 
