@@ -127,10 +127,15 @@ function processSyncTask(ss, task) {
     var headers = getHeaders(sheet);
     var data = sheet.getDataRange().getValues();
     var idField = sheetName === 'Peminjaman' ? 'newId' : (sheetName === 'Bahan' || sheetName === 'Bahan_Keluar' ? 'ID_Barang' : 'id');
-    var targetId = String(payload[idField]);
+    var targetId = String(payload[idField] || payload.id || payload.ID_Barang || payload.newId);
     
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][headers.indexOf(idField)]) === targetId) {
+      var idColIdx = headers.indexOf(idField);
+      if (idColIdx === -1) idColIdx = headers.findIndex(function(h) { return String(h).toUpperCase() === 'ID' || String(h).toUpperCase() === 'ID BARANG' || String(h).toUpperCase() === 'ID_BARANG' || String(h).toUpperCase() === 'NEWID'; });
+      
+      var rowId = idColIdx > -1 ? String(data[i][idColIdx]) : "undefined";
+      
+      if (rowId !== "undefined" && targetId !== "undefined" && rowId === targetId) {
         var rowToUpdate = i + 1;
         var updateRow = headers.map(function(h) {
           return payload[h] !== undefined ? payload[h] : data[i][headers.indexOf(h)];
@@ -147,11 +152,13 @@ function processSyncTask(ss, task) {
     var targetId = String(payload[idField] || payload.id || payload.newId);
     
     for (var i = 1; i < data.length; i++) {
-      var rowId = String(data[i][headers.indexOf(idField)]);
-      if (!rowId || rowId === "undefined") {
-         rowId = String(data[i][headers.indexOf('id')] || data[i][headers.indexOf('newId')] || data[i][headers.indexOf('ID_Barang')]);
-      }
-      if (rowId === targetId) {
+      var idColIdx = headers.indexOf(idField);
+      if (idColIdx === -1) idColIdx = headers.findIndex(function(h) { return String(h).toUpperCase() === 'ID' || String(h).toUpperCase() === 'ID BARANG' || String(h).toUpperCase() === 'ID_BARANG' || String(h).toUpperCase() === 'NEWID'; });
+      
+      var rowId = idColIdx > -1 ? String(data[i][idColIdx]) : "undefined";
+      
+      // Strict equality check prevents mistaken deletion of row 2
+      if (rowId !== "undefined" && targetId !== "undefined" && rowId === targetId) {
         sheet.deleteRow(i + 1);
         break;
       }

@@ -1746,24 +1746,36 @@ const app = {
 
         bahanRaw.forEach(b => {
             const tr = document.createElement('tr');
-            const stokTotal = Number(b.Stok || 0);
-            const stokMin = Number(b.Stok_Minimal || 0);
+            
+            // Normalize column names just in case Google Sheets headers differ slightly
+            const idBarang = b.ID_Barang || b['ID Barang'] || b.ID || b.id || b.id_barang || b.Kode || '';
+            const namaBarang = b.Nama_Barang || b['Nama Barang'] || b.Nama || b.nama || b.Barang || '';
+            const kategori = b.Kategori || b.kategori || '';
+            const satuan = b.Satuan || b.satuan || '';
+            const stokTotal = Number(b.Stok || b.stok || b.Jumlah || b.jumlah || 0);
+            const stokMin = Number(b.Stok_Minimal || b.Stok_minimal || b['Stok Minimal'] || b.stok_minimal || b.Minimal || 0);
+            
+            // Assign back standard keys so modals and actions work correctly
+            b.ID_Barang = idBarang;
+            b.Nama_Barang = namaBarang;
+            b.Stok = stokTotal;
+            b.Stok_Minimal = stokMin;
 
             let stokBadgeClass = 'badge bg-success';
             if (stokTotal <= stokMin && stokTotal > 0) stokBadgeClass = 'badge bg-warning';
             if (stokTotal <= 0) stokBadgeClass = 'badge bg-danger';
 
             tr.innerHTML = `
-                <td>${b.ID_Barang || '-'}</td>
-                <td style="font-weight:600;">${b.Nama_Barang || '-'}</td>
-                <td><span class="badge" style="background:var(--surface-light); color:var(--text);">${b.Kategori || '-'}</span></td>
-                <td>${b.Satuan || '-'}</td>
+                <td>${idBarang || '-'}</td>
+                <td style="font-weight:600;">${namaBarang || '-'}</td>
+                <td><span class="badge" style="background:var(--surface-light); color:var(--text);">${kategori || '-'}</span></td>
+                <td>${satuan || '-'}</td>
                 <td><span class="${stokBadgeClass}" style="color:white; padding:0.25rem 0.5rem; border-radius:4px;">${stokTotal} Sisa</span></td>
                 <td>
                     <div style="display:flex; gap:0.5rem; justify-content:center;">
-                        <button class="btn-icon" style="color:var(--warning);" onclick="app.openBahanCheckoutModal('${b.ID_Barang}')" title="Input Pemakaian" ${stokTotal <= 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}><i class="ph ph-trend-down"></i></button>
-                        <button class="btn-icon" style="color:var(--primary);" onclick="app.openBahanModal('${b.ID_Barang}')" title="Edit Data"><i class="ph ph-pencil-simple"></i></button>
-                        <button class="btn-icon" style="color:var(--danger);" onclick="app.deleteBahan('${b.ID_Barang}')" title="Hapus"><i class="ph ph-trash"></i></button>
+                        <button class="btn-icon" style="color:var(--warning);" onclick="app.openBahanCheckoutModal('${idBarang}')" title="Input Pemakaian" ${stokTotal <= 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}><i class="ph ph-trend-down"></i></button>
+                        <button class="btn-icon" style="color:var(--primary);" onclick="app.openBahanModal('${idBarang}')" title="Edit Data"><i class="ph ph-pencil-simple"></i></button>
+                        <button class="btn-icon" style="color:var(--danger);" onclick="app.deleteBahan('${idBarang}')" title="Hapus"><i class="ph ph-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1804,16 +1816,26 @@ const app = {
         const isNew = !id;
         const targetId = id || document.getElementById('bahan-kode').value;
 
+        const nama = document.getElementById('bahan-nama').value;
+        const kat = document.getElementById('bahan-kategori').value;
+        const sat = document.getElementById('bahan-satuan').value;
+        const stok = document.getElementById('bahan-stok').value;
+        const stokMin = document.getElementById('bahan-stok-minimum').value;
+        const ket = document.getElementById('bahan-keterangan').value;
+        const jur = this.state.user.jurusan_id || '1';
+        const userNow = this.state.user.full_name || this.state.user.username;
+
         const payload = {
-            ID_Barang: targetId,
-            Nama_Barang: document.getElementById('bahan-nama').value,
-            Kategori: document.getElementById('bahan-kategori').value,
-            Satuan: document.getElementById('bahan-satuan').value,
-            Stok: document.getElementById('bahan-stok').value,
-            Stok_Minimal: document.getElementById('bahan-stok-minimum').value,
-            Keterangan: document.getElementById('bahan-keterangan').value,
-            Kode_jurusan: this.state.user.jurusan_id || '1',
-            Diinput_Oleh: this.state.user.full_name || this.state.user.username
+            // Fat payload ensures Google Sheets matches column regardless of case/spacing
+            ID_Barang: targetId, 'ID Barang': targetId, id: targetId, ID: targetId,
+            Nama_Barang: nama, 'Nama Barang': nama, Nama: nama, nama: nama,
+            Kategori: kat, kategori: kat,
+            Satuan: sat, satuan: sat,
+            Stok: stok, stok: stok, Jumlah: stok, jumlah: stok,
+            Stok_Minimal: stokMin, 'Stok Minimal': stokMin, stok_minimal: stokMin,
+            Keterangan: ket, keterangan: ket,
+            Kode_jurusan: jur, 'Kode Jurusan': jur, jurusan: jur, jurusan_id: jur,
+            Diinput_Oleh: userNow
         };
 
         try {
