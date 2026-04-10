@@ -650,6 +650,10 @@ const app = {
     // --- User Management
     loadUsers: async function () {
         const users = await db.getAll('users');
+        const jurusanList = await db.getAll('jurusan');
+        const jurusanMap = {};
+        jurusanList.forEach(j => { jurusanMap[String(j.id || j.newId)] = j.kode || j.nama; });
+
         const tbody = document.querySelector('#table-users tbody');
         tbody.innerHTML = '';
 
@@ -659,29 +663,47 @@ const app = {
                 <td><b>${u.username}</b></td>
                 <td>${u.full_name}</td>
                 <td><span class="badge">${u.role}</span></td>
-                <td>${u.jurusan_id || 'Semua'}</td>
+                <td>${u.jurusan_id ? (jurusanMap[String(u.jurusan_id)] || u.jurusan_id) : 'Semua'}</td>
                 <td>
-                    <button class="btn-icon" onclick='app.editUser(${JSON.stringify(u)})'><i class="ph ph-pencil"></i></button>
+                    <button class="btn-icon" onclick='app.editUser(${JSON.stringify(u).replace(/'/g, "&#39;")})'><i class="ph ph-pencil"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     },
 
-    openUserModal: function () {
+    openUserModal: async function () {
         document.getElementById('user-form').reset();
         document.getElementById('user-id').value = '';
+        
+        // Load Jurusan untuk dropdown
+        const selectJur = document.getElementById('user-jurusan');
+        selectJur.innerHTML = '<option value="">Semua (Admin Umum)</option>';
+        const jur = await db.getAll('jurusan');
+        jur.forEach(j => {
+            selectJur.innerHTML += `<option value="${j.id || j.newId}">${j.nama}</option>`;
+        });
+
         document.getElementById('user-modal-title').textContent = 'Tambah User';
         this.openModal('user-modal');
     },
 
-    editUser: function (user) {
+    editUser: async function (user) {
         document.getElementById('user-id').value = user.id || user.newId;
         document.getElementById('user-username').value = user.username;
         document.getElementById('user-password').value = user.password;
         document.getElementById('user-fullname').value = user.full_name;
         document.getElementById('user-role').value = user.role;
-        document.getElementById('user-jurusan').value = user.jurusan_id;
+        
+        // Load Jurusan untuk dropdown
+        const selectJur = document.getElementById('user-jurusan');
+        selectJur.innerHTML = '<option value="">Semua (Admin Umum)</option>';
+        const jur = await db.getAll('jurusan');
+        jur.forEach(j => {
+            selectJur.innerHTML += `<option value="${j.id || j.newId}">${j.nama}</option>`;
+        });
+        
+        document.getElementById('user-jurusan').value = user.jurusan_id || '';
         document.getElementById('user-modal-title').textContent = 'Edit User';
         this.openModal('user-modal');
     },
@@ -728,15 +750,19 @@ const app = {
     // --- Kategori Management
     loadKategori: async function () {
         const data = this.getFilteredData(await db.getAll('kategori'));
+        const jurusanList = await db.getAll('jurusan');
+        const jurusanMap = {};
+        jurusanList.forEach(j => { jurusanMap[String(j.id || j.newId)] = j.kode || j.nama; });
+
         const tbody = document.querySelector('#table-kategori tbody');
         tbody.innerHTML = '';
         data.forEach(kat => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${kat.nama}</b></td>
-                <td>${kat.jurusan_id || '-'}</td>
+                <td>${kat.jurusan_id ? (jurusanMap[String(kat.jurusan_id)] || kat.jurusan_id) : '-'}</td>
                 <td style="text-align:right">
-                    <button class="btn-icon" onclick='app.editKategori(${JSON.stringify(kat)})'><i class="ph ph-pencil"></i></button>
+                    <button class="btn-icon" onclick='app.editKategori(${JSON.stringify(kat).replace(/'/g, "&#39;")})'><i class="ph ph-pencil"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1020,8 +1046,8 @@ const app = {
 
         // Strict filter for Bahan category based on current user's jurusan
         let dataBahan = rawData;
-        const myJurusanId = String(this.state.user.jurusan_id || '');
-        if (myJurusanId && myJurusanId !== 'undefined' && myJurusanId !== 'null') {
+        if (this.state.user && this.state.user.role !== 'Admin') {
+            const myJurusanId = String(this.state.user.jurusan_id || '');
             dataBahan = rawData.filter(k => {
                 const katJurusan = String(k.jurusan_id || k.Kode_jurusan || k.Jurusan_ID || '');
                 // Allow if matches or if category somehow doesn't have a specific major listed
@@ -1603,6 +1629,70 @@ const app = {
         } catch (e) {
             console.error(e);
             this.showToast('Gagal merender PDF, pastikan koneksi memadai untuk memuat alat pembuat dokumen', 'error');
+        }
+    },
+
+    exportRiwayatBahan: async function () {
+        let keluarRaw = await db.getAll('bahan_keluar');
+        const myJurusanId = String(this.state.user.jurusan_id || '');
+        if (this.state.user.role !== 'Admin') {
+            keluarRaw = keluarRaw.filter(k => String(k.Kode_jurusan || k.jurusan_id || '') === myJurusanId);
+        }
+        
+        if (!keluarRaw || keluarRaw.length === 0) return this.showToast('Belum ada data pengeluaran bahan', 'warning');
+        
+        keluarRaw.reverse(); // Descending (terbaru di atas)
+
+        const allJurusan = await db.getAll('jurusan');
+        const myJurusanName = allJurusan.find(j => String(j.id || j.newId) === String(this.state.user.jurusan_id))?.nama || 'UMUM';
+
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape');
+
+            if (window.APP_LOGO_B64) {
+                doc.addImage(window.APP_LOGO_B64, 'PNG', 260, 10, 22, 22);
+            }
+
+            doc.setFontSize(18);
+            doc.text("Laporan Riwayat Pengeluaran Bahan", 14, 20);
+            doc.setFontSize(10);
+
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const d = new Date();
+            const printDateStr = `${d.getDate().toString().padStart(2, '0')} ${monthNames[d.getMonth()]} ${d.getFullYear()} (${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}) - ${this.state.user.full_name || this.state.user.username} - ${myJurusanName} (SMK Negeri 1 Bumijawa)`;
+
+            doc.text("Tanggal Cetak: " + printDateStr, 14, 28);
+
+            const tableColumn = ["Tanggal / ID", "Nama Bahan", "Jml Keluar", "Satuan", "Status / Keterangan", "Petugas"];
+            const tableRows = [];
+
+            keluarRaw.forEach(k => {
+                const rowData = [
+                    k.Status && String(k.Status).includes('|') ? k.Status.split('|')[0] : (k.ID_Barang || '-'),
+                    k.Nama_Barang || '-',
+                    '- ' + (k.Total_Keluar || 0),
+                    k.Satuan || '-',
+                    k.Status && String(k.Status).includes('|') ? k.Status.split('|')[1]?.trim() : (k.Status || '-'),
+                    k.Diinput_Oleh || '-'
+                ];
+                tableRows.push(rowData);
+            });
+
+            doc.autoTable({
+                head: [tableColumn],
+                body: tableRows,
+                startY: 38,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 2 },
+                headStyles: { fillColor: [231, 76, 60], textColor: 255 }, // Warna merah khas 'Bahan Keluar'
+                columnStyles: { 4: { cellWidth: 80 } }
+            });
+
+            doc.save('Laporan_Riwayat_Bahan_Keluar.pdf');
+        } catch (e) {
+            console.error(e);
+            this.showToast('Gagal merender PDF.', 'error');
         }
     },
 
