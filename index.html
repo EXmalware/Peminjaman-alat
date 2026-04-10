@@ -721,8 +721,11 @@
                             </select>
                         </div>
                         <div class="input-group">
-                            <label>ID Jurusan</label>
-                            <input type="number" id="user-jurusan">
+                            <label>Jurusan</label>
+                            <select id="user-jurusan">
+                                <option value="">Semua (Admin Umum)</option>
+                                <!-- options dimuat oleh JS -->
+                            </select>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="app.closeModal('user-modal')">Batal</button>
