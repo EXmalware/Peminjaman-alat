@@ -173,6 +173,13 @@
                                     <h2 id="stat-bahan-tersedia">0</h2>
                                 </div>
                             </div>
+                            <div class="stat-card glass-card">
+                                <div class="stat-icon bg-danger"><i class="ph ph-warning"></i></div>
+                                <div class="stat-info">
+                                    <h3>Terlambat</h3>
+                                    <h2 id="stat-terlambat">0</h2>
+                                </div>
+                            </div>
                         </div>
                         <div class="dashboard-active glass-card mt-4">
                             <div class="card-header flex-header">
@@ -326,7 +333,33 @@
                                     <div class="stat-icon bg-green" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-clock-counter-clockwise"></i></div>
                                     <h3>Riwayat Peminjaman</h3>
                                 </div>
-                                <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayat()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                                <div style="display:flex; gap:0.5rem; align-items:center;">
+                                    <select id="filter-bulan-riwayat" style="padding: 0.3rem; border-radius: 6px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.1); font-size:0.85rem;">
+                                        <option value="">Semua Bulan</option>
+                                        <option value="01">Januari</option>
+                                        <option value="02">Februari</option>
+                                        <option value="03">Maret</option>
+                                        <option value="04">April</option>
+                                        <option value="05">Mei</option>
+                                        <option value="06">Juni</option>
+                                        <option value="07">Juli</option>
+                                        <option value="08">Agustus</option>
+                                        <option value="09">September</option>
+                                        <option value="10">Oktober</option>
+                                        <option value="11">November</option>
+                                        <option value="12">Desember</option>
+                                    </select>
+                                    <select id="filter-tahun-riwayat" style="padding: 0.3rem; border-radius: 6px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.1); font-size:0.85rem;">
+                                        <option value="">Semua Tahun</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2026">2026</option>
+                                        <option value="2027">2027</option>
+                                        <option value="2028">2028</option>
+                                        <option value="2029">2029</option>
+                                        <option value="2030">2030</option>
+                                    </select>
+                                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayat()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                                </div>
                             </div>
                             <div class="table-responsive">
                                 <table id="table-riwayat" class="table-modern neat-table">
@@ -783,6 +816,78 @@
         </div>
     </div>
 
+    <!-- Edit Peminjaman Modal -->
+    <div id="edit-peminjaman-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="max-width: 550px;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div class="stat-icon bg-orange" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-pencil"></i></div>
+                    <div>
+                        <h3 id="edit-peminjaman-modal-title">Edit Peminjaman</h3>
+                        <p id="edit-peminjaman-trx-no" style="font-size: 0.8rem; margin:0; opacity:0.7;">TRX-0000000000</p>
+                    </div>
+                </div>
+                <button class="btn-icon" onclick="app.closeModal('edit-peminjaman-modal')"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-peminjaman-form">
+                    <input type="hidden" id="edit-pem-id">
+                    <div class="form-grid-lending">
+                        <div class="input-group">
+                            <label><i class="ph ph-user"></i> Nama Peminjam</label>
+                            <input type="text" id="edit-pem-nama" required>
+                        </div>
+                        <div class="input-group">
+                            <label><i class="ph ph-phone"></i> Nomor HP</label>
+                            <input type="text" id="edit-pem-hp" required>
+                        </div>
+                        <div class="input-group">
+                            <label><i class="ph ph-graduation-cap"></i> Kelas / Unit</label>
+                            <input type="text" id="edit-pem-kelas" required>
+                        </div>
+                        <div class="input-group">
+                            <label><i class="ph ph-calendar"></i> Tgl Kembali (Estimasi)</label>
+                            <input type="date" id="edit-pem-kembali" required>
+                        </div>
+                    </div>
+                    
+                    <div class="lending-tools-section mt-4">
+                        <div class="section-header-flex">
+                            <h4><i class="ph ph-toolbox"></i> Daftar Alat</h4>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="app.openPilihAlatModalEdit()">
+                                <i class="ph ph-plus-circle"></i> Tambah Alat
+                            </button>
+                        </div>
+                        <div class="table-responsive-minimal">
+                            <table class="table-modern" id="table-edit-cart">
+                                <thead>
+                                    <tr>
+                                        <th>Kode Seri</th>
+                                        <th>Nama Alat</th>
+                                        <th>Jumlah</th>
+                                        <th style="width:50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="edit-cart-empty"><td colspan="4" style="text-align:center; color:var(--text-muted); padding: 2rem;">Belum ada alat dipilih</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="input-group mt-4">
+                        <label><i class="ph ph-note"></i> Keterangan / Catatan</label>
+                        <textarea id="edit-pem-keterangan" rows="3"></textarea>
+                    </div>
+                    <div class="modal-footer" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                        <button type="button" class="btn btn-outline" onclick="app.closeModal('edit-peminjaman-modal')">Batal</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-edit-peminjaman"><i class="ph ph-floppy-disk"></i> Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Bahan Modal (CRUD Bahan) -->
     <div id="bahan-modal" class="modal hidden">
         <div class="modal-content glass-card" style="max-width: 500px;">
@@ -906,6 +1011,6 @@
 
     <script src="./logo.js"></script>
     <script src="./db.js"></script>
-    <script src="./app-v3.js"></script>
+    <script src="./app-v3.js?v=6"></script>
 </body>
 </html>

@@ -22,7 +22,7 @@ const db = {
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
             try {
-                const reg = await navigator.serviceWorker.register('./sw.js?v=3');
+                const reg = await navigator.serviceWorker.register('./sw.js?v=6');
                 console.log('Service Worker Registered (v3)!', reg);
             } catch (err) {
                 console.log('Service Worker registration failed: ', err);

@@ -111,6 +111,12 @@ const app = {
             this.savePeminjaman(e);
         });
 
+        // Edit Peminjaman Form
+        document.getElementById('edit-peminjaman-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveEditPeminjaman(e);
+        });
+
         // Bahan Form
         document.getElementById('bahan-form')?.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -542,6 +548,22 @@ const app = {
         }
     },
 
+    isOverdue: function (estimasiDateStr) {
+        if (!estimasiDateStr) return false;
+        try {
+            const estimasi = new Date(estimasiDateStr);
+            if (isNaN(estimasi.getTime())) return false;
+            
+            // Set estimasi to end of day
+            estimasi.setHours(23, 59, 59, 999);
+            
+            const today = new Date();
+            return estimasi < today;
+        } catch (e) {
+            return false;
+        }
+    },
+
     loadDashboard: async function () {
         const alat = this.getFilteredData(await db.getAll('alat'));
         const riwayatRaw = await db.getAll('peminjaman');
@@ -551,8 +573,15 @@ const app = {
         document.getElementById('stat-tersedia').textContent = alat.filter(a => Number(a.jumlah_tersedia) > 0).length;
 
         // Count active borrowings
-        const activeCount = riwayat.filter(p => p.status === 'DIPINJAM').length;
+        const activeBorrowings = riwayat.filter(p => p.status === 'DIPINJAM');
+        const activeCount = activeBorrowings.length;
         document.getElementById('stat-dipinjam').textContent = activeCount;
+
+        const statTerlambat = document.getElementById('stat-terlambat');
+        if (statTerlambat) {
+            const overdueCount = activeBorrowings.filter(p => this.isOverdue(p.tanggal_kembali_estimasi)).length;
+            statTerlambat.textContent = overdueCount;
+        }
 
         // Load Bahan Kritis (Habis/Menipis)
         const bahanTable = document.getElementById('dashboard-bahan-kritis-table');
@@ -1166,10 +1195,19 @@ const app = {
         data.forEach(p => {
             const tr = document.createElement('tr');
             const items = JSON.parse(p.items || '[]');
+            let overdueBadge = '';
+            if (this.isOverdue(p.tanggal_kembali_estimasi)) {
+                overdueBadge = '<span class="badge bg-danger" style="margin-top:0.2rem; font-size:0.75rem;">TERLAMBAT</span>';
+                tr.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
+            }
+            
             tr.innerHTML = `
                 <td><b>${p.nomor_peminjaman}</b></td>
                 <td><b>${p.nama_peminjam}</b><small>${p.kelas_unit}</small></td>
-                <td><small>${this.formatDate(p.tanggal_kembali_estimasi)}</small></td>
+                <td>
+                    <small>${this.formatDate(p.tanggal_kembali_estimasi)}</small><br>
+                    ${overdueBadge}
+                </td>
                 <td>
                     <span class="badge badge-outline clickable-badge" 
                           onclick="app.showPeminjamanDetail('${p.id || p.newId}')"
@@ -1180,6 +1218,7 @@ const app = {
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-sm btn-outline" onclick='app.cetakReceipt(${JSON.stringify(p)})' title="Cetak Struk"><i class="ph ph-printer"></i></button>
+                        <button class="btn btn-sm btn-outline" onclick="app.editPeminjaman('${p.id || p.newId}')" title="Edit Transaksi"><i class="ph ph-pencil"></i></button>
                         <button class="btn btn-sm btn-primary" onclick="app.kembalikanAlat('${p.id || p.newId}')" title="Kembalikan"><i class="ph ph-arrow-u-up-left"></i></button>
                     </div>
                 </td>
@@ -1189,6 +1228,7 @@ const app = {
     },
 
     openPilihAlatModal: async function () {
+        this.state.isEditingPeminjaman = false;
         this.openModal('pilih-alat-modal');
         this.filterPilihAlat();
     },
@@ -1215,7 +1255,13 @@ const app = {
     },
 
     addToCart: function (a) {
-        const existing = this.state.cart.find(item => (item.id || item.newId) === (a.id || a.newId));
+        const cartTarget = this.state.isEditingPeminjaman ? this.state.editCart : this.state.cart;
+        if (!cartTarget) {
+            this.state.editCart = [];
+        }
+        const activeCart = this.state.isEditingPeminjaman ? this.state.editCart : this.state.cart;
+        
+        const existing = activeCart.find(item => (item.id || item.newId) === (a.id || a.newId));
         if (existing) {
             if (existing.qty < a.jumlah_tersedia) {
                 existing.qty++;
@@ -1223,10 +1269,14 @@ const app = {
                 return this.showToast('Jumlah melebihi stok tersedia!', 'warning');
             }
         } else {
-            this.state.cart.push({ ...a, qty: 1 });
+            activeCart.push({ ...a, qty: 1 });
         }
         this.closeModal('pilih-alat-modal');
-        this.renderCart();
+        if (this.state.isEditingPeminjaman) {
+            this.renderEditCart();
+        } else {
+            this.renderCart();
+        }
     },
 
     renderCart: function () {
@@ -1326,6 +1376,10 @@ const app = {
                 await db.queueSyncTask('update_alat', 'alat', alat);
             }
         }
+
+        document.getElementById('form-peminjaman').reset();
+        this.state.cart = [];
+        this.renderCart();
 
         this.hideLoading();
         this.showToast('Peminjaman berhasil disimpan!', 'success');
@@ -1458,12 +1512,28 @@ const app = {
             const note = p.Keterangan || p.keterangan || '-';
             const items = JSON.parse(p.items || '[]');
 
+            let editButtonHtml = '';
+            let overdueBadge = '';
+            if (p.status === 'DIPINJAM') {
+                editButtonHtml = `
+                    <button class="btn-icon" style="font-size: 1.1rem; padding: 0.2rem;" onclick="app.editPeminjaman('${p.id || p.newId}')" title="Edit Riwayat">
+                        <i class="ph ph-pencil" style="color:var(--primary)"></i>
+                    </button>
+                `;
+                
+                if (this.isOverdue(p.tanggal_kembali_estimasi)) {
+                    overdueBadge = '<span class="badge bg-danger" style="margin-top:0.2rem; font-size:0.75rem;">TERLAMBAT</span>';
+                    tr.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
+                }
+            }
+
             tr.innerHTML = `
                 <td><b>${p.nomor_peminjaman}</b></td>
-                <td><b>${p.nama_peminjam}</b><small>${p.kelas_unit} • ${p.nomor_hp}</small></td>
+                <td><b>${p.nama_peminjam}</b><br><small>${p.kelas_unit} • ${p.nomor_hp}</small></td>
                 <td>
                     <b>Pinjam:</b> ${pinjamDate}<br>
-                    <small>Kembali: ${kembaliDate}</small>
+                    <small>Kembali: ${kembaliDate}</small><br>
+                    ${overdueBadge}
                 </td>
                 <td>
                     <span class="badge clickable-badge" 
@@ -1476,6 +1546,7 @@ const app = {
                 <td>
                     <div style="display:flex; align-items:center; gap:0.5rem; justify-content:flex-start;">
                         ${statusBadge}
+                        ${editButtonHtml}
                         <button class="btn-icon" style="font-size: 1.1rem; padding: 0.2rem;" onclick="app.hapusPeminjaman('${p.id || p.newId}')" title="Hapus Riwayat">
                             <i class="ph ph-trash" style="color:var(--danger)"></i>
                         </button>
@@ -1525,6 +1596,159 @@ const app = {
         db.syncToServer();
     },
 
+    editPeminjaman: async function (id) {
+        const p = await db.stores.peminjaman.getItem(id);
+        if (!p) return this.showToast('Data peminjaman tidak ditemukan', 'error');
+
+        document.getElementById('edit-pem-id').value = id;
+        document.getElementById('edit-pem-nama').value = p.nama_peminjam || '';
+        document.getElementById('edit-pem-hp').value = p.nomor_hp || '';
+        document.getElementById('edit-pem-kelas').value = p.kelas_unit || '';
+        let estimasiDateStr = p.tanggal_kembali_estimasi || '';
+        if (estimasiDateStr) {
+            try {
+                const d = new Date(estimasiDateStr);
+                if (!isNaN(d.getTime())) {
+                    estimasiDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                }
+            } catch(e) {}
+        }
+        document.getElementById('edit-pem-kembali').value = estimasiDateStr;
+        document.getElementById('edit-pem-keterangan').value = p.Keterangan || p.keterangan || '';
+        document.getElementById('edit-peminjaman-trx-no').textContent = p.nomor_peminjaman || id;
+
+        this.state.editCart = JSON.parse(p.items || '[]');
+        this.state.originalEditCart = JSON.parse(p.items || '[]');
+        this.renderEditCart();
+
+        this.openModal('edit-peminjaman-modal');
+    },
+
+    renderEditCart: function () {
+        const tbody = document.querySelector('#table-edit-cart tbody');
+        tbody.innerHTML = '';
+        if (!this.state.editCart || this.state.editCart.length === 0) {
+            tbody.innerHTML = '<tr id="edit-cart-empty"><td colspan="4" style="text-align:center; color:var(--text-muted); padding: 2rem;">Belum ada alat dipilih</td></tr>';
+            return;
+        }
+
+        this.state.editCart.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.kode_seri}</td>
+                <td>${item.nama}</td>
+                <td>
+                    <input type="number" min="1" max="${item.jumlah_tersedia}" value="${item.qty}" 
+                    style="width:60px; padding:0.2rem; background:rgba(0,0,0,0.2); border:1px solid #4f46e5; color:white;" 
+                    onchange="app.updateEditCartQty(${index}, this.value)">
+                </td>
+                <td><button type="button" class="btn-icon" onclick="app.removeFromEditCart(${index})"><i class="ph ph-trash" style="color:var(--danger)"></i></button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    },
+
+    updateEditCartQty: function (index, val) {
+        const qty = parseInt(val);
+        if (qty > 0 && qty <= this.state.editCart[index].jumlah_tersedia) {
+            this.state.editCart[index].qty = qty;
+        } else {
+            this.showToast('Kuantitas tidak valid atau melebihi stok asli', 'warning');
+            this.renderEditCart();
+        }
+    },
+
+    removeFromEditCart: function (index) {
+        this.state.editCart.splice(index, 1);
+        this.renderEditCart();
+    },
+
+    openPilihAlatModalEdit: function () {
+        this.state.isEditingPeminjaman = true;
+        this.openModal('pilih-alat-modal');
+        this.filterPilihAlat();
+    },
+
+    saveEditPeminjaman: async function (e) {
+        const id = document.getElementById('edit-pem-id').value;
+        if (!id) return;
+
+        const newItems = this.state.editCart || [];
+        if (newItems.length === 0) {
+            return this.showToast('Pilih minimal 1 alat!', 'warning');
+        }
+
+        this.showLoading('Menyimpan Perubahan...');
+        const p = await db.stores.peminjaman.getItem(id);
+        if (!p) {
+            this.hideLoading();
+            return this.showToast('Gagal memuat data', 'error');
+        }
+
+        const deltaMap = {};
+        const oldItems = this.state.originalEditCart || [];
+        for (const old of oldItems) {
+            const alatId = String(old.id || old.newId);
+            deltaMap[alatId] = (deltaMap[alatId] || 0) - Number(old.qty);
+        }
+        for (const item of newItems) {
+            const alatId = String(item.id || item.newId);
+            deltaMap[alatId] = (deltaMap[alatId] || 0) + Number(item.qty);
+        }
+
+        for (const alatId in deltaMap) {
+            const delta = deltaMap[alatId];
+            if (delta > 0) {
+                const alat = await db.stores.alat.getItem(alatId);
+                if (alat && Number(alat.jumlah_tersedia) < delta) {
+                    this.hideLoading();
+                    return this.showToast('Stok tidak cukup untuk alat: ' + alat.nama, 'warning');
+                }
+            }
+        }
+
+        for (const alatId in deltaMap) {
+            const delta = deltaMap[alatId];
+            if (delta !== 0) {
+                const alat = await db.stores.alat.getItem(alatId);
+                if (alat) {
+                    alat.jumlah_tersedia = Number(alat.jumlah_tersedia) - delta;
+                    await db.stores.alat.setItem(alatId, alat);
+                    await db.queueSyncTask('update_alat', 'alat', alat);
+                }
+            }
+        }
+
+        p.nama_peminjam = document.getElementById('edit-pem-nama').value;
+        p.nomor_hp = document.getElementById('edit-pem-hp').value;
+        p.kelas_unit = document.getElementById('edit-pem-kelas').value;
+        p.tanggal_kembali_estimasi = document.getElementById('edit-pem-kembali').value;
+        p.Keterangan = document.getElementById('edit-pem-keterangan').value;
+        p.keterangan = p.Keterangan; 
+
+        p.items = JSON.stringify(newItems.map(i => ({
+            id: i.id || i.newId,
+            nama: i.nama,
+            kode_seri: i.kode_seri,
+            qty: i.qty,
+            jumlah_tersedia: i.jumlah_tersedia
+        })));
+
+        await db.stores.peminjaman.setItem(id, p);
+        await db.queueSyncTask('update_peminjaman', 'peminjaman', p);
+
+        document.getElementById('edit-peminjaman-form').reset();
+
+        this.hideLoading();
+        this.closeModal('edit-peminjaman-modal');
+        this.showToast('Perubahan berhasil disimpan!', 'success');
+        
+        this.loadActivePeminjaman();
+        this.loadRiwayat();
+
+        db.syncToServer();
+    },
+
     kembalikanAlat: async function (peminjamanId) {
         const tanya = await this.showDialog('Kembalikan Alat', 'Tandai alat ini sebagai sudah selesai dikembalikan?', 'confirm');
         if (!tanya) return;
@@ -1569,7 +1793,29 @@ const app = {
     },
 
     exportRiwayat: async function () {
-        const data = this.getFilteredData(await db.getAll('peminjaman'));
+        let data = this.getFilteredData(await db.getAll('peminjaman'));
+
+        const filterBulan = document.getElementById('filter-bulan-riwayat')?.value;
+        const filterTahun = document.getElementById('filter-tahun-riwayat')?.value;
+
+        if (filterBulan || filterTahun) {
+            data = data.filter(p => {
+                const dateStr = p.created_at || p.tanggal_pinjam;
+                if (!dateStr) return false;
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return false;
+                
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = String(date.getFullYear());
+                
+                let match = true;
+                if (filterBulan && month !== filterBulan) match = false;
+                if (filterTahun && year !== filterTahun) match = false;
+                
+                return match;
+            });
+        }
+
         if (!data || data.length === 0) return this.showToast('Belum ada data riwayat', 'warning');
 
         const allUsers = await db.getAll('users');
