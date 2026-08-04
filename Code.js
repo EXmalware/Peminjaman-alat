@@ -1,34 +1,21 @@
 /**
  * Code.gs - Google Apps Script Backend for PinjamAlat Web App
  * Integrates with Google Sheets and Google Drive
- * 
- * IMPORTANT: Deploy this as a Web App:
- * 1. Execute as: User accessing the web app / Me (Choose "Me" if accessing via fetch)
- * 2. Who has access: Anyone (to allow CORS requests without strict Google auth if desired)
+ * Deploy as Web App: Execute as Me, Anyone can access
  */
 
 const SPREADSHEET_ID = '1xjZqhlt6RxFUHtFbkNE_1nqyph1xbA78jtIYz98A6vw';
 const IMAGE_FOLDER_ID = '1K5ycuoVqPbONG8nUAwU7CMSRnhR-cu8P';
 
-function setupCORS() {
-  return ContentService.createTextOutput()
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
 function doOptions(e) {
-  var output = ContentService.createTextOutput("");
-  output.setMimeType(ContentService.MimeType.TEXT);
-  return output;
+  return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);
 }
 
 function doGet(e) {
-  var action = e.parameter.action;
   var response = {};
-
   try {
-    if (action === 'get_data') {
+    if (e.parameter.action === 'get_data') {
       var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-      
       response = {
         status: 'success',
         users: getSheetDataAsObjects(ss.getSheetByName('Users')),
@@ -39,59 +26,44 @@ function doGet(e) {
         bahan: getSheetDataAsObjects(ss.getSheetByName('bahan') || ss.getSheetByName('Bahan')),
         bahan_keluar: getSheetDataAsObjects(ss.getSheetByName('bahan_keluar') || ss.getSheetByName('Bahan_Keluar'))
       };
-    } else {
-      response.status = 'error';
-      response.message = 'Invalid action';
-    }
+    } else response = {status: 'error', message: 'Invalid action'};
   } catch (error) {
-    response.status = 'error';
-    response.message = error.toString();
+    response = {status: 'error', message: error.toString()};
   }
-
   return setCORSResponse(response);
 }
 
 function doPost(e) {
-  var response = { status: 'error', message: 'Unknown error' };
-  
+  var response = {status: 'error', message: 'Unknown error'};
   try {
-    var rawParams = e.postData.contents;
-    var params = JSON.parse(rawParams);
-    var action = params.action;
-    
+    var params = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
-    if (action === 'sync') {
-      var queue = params.queue;
-      
-      // Process sync queue
-      for (var i = 0; i < queue.length; i++) {
-        var task = queue[i];
-        processSyncTask(ss, task);
-      }
-      
-      response.status = 'success';
-      response.message = 'Sync completed';
+    if (params.action === 'sync') {
+      for (var i = 0; i < params.queue.length; i++) processSyncTask(ss, params.queue[i]);
+      response = {status: 'success', message: 'Sync completed'};
     } 
-    else if (action === 'upload_image') {
-      var base64 = params.image; // Base64 string
-      var filename = params.filename;
-      
-      var blob = Utilities.newBlob(Utilities.base64Decode(base64.split(',')[1]), 'image/png', filename);
-      var folder = DriveApp.getFolderById(IMAGE_FOLDER_ID);
-      var file = folder.createFile(blob);
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      
-      response.status = 'success';
-      response.url = file.getDownloadUrl().replace('&gd=true', '') || file.getUrl();
+    else if (params.action === 'upload_image') {
+      var blob = Utilities.newBlob(Utilities.base64Decode(params.image.split(',')[1]), 'image/png', params.filename);
+      var file = DriveApp.getFolderById(IMAGE_FOLDER_ID).createFile(blob);
+      try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+      response = {status: 'success', url: file.getDownloadUrl().replace('&gd=true', '') || file.getUrl()};
     }
-    
   } catch (error) {
-    response.status = 'error';
-    response.message = error.toString();
+    response = {status: 'error', message: error.toString()};
   }
-
   return setCORSResponse(response);
+}
+
+function getHeaderIndex(headers, candidateNames) {
+  if (!headers || !headers.length) return -1;
+  var map = {};
+  for (var i = 0; i < headers.length; i++) map[String(headers[i]).trim().toLowerCase()] = i;
+  for (var j = 0; j < candidateNames.length; j++) {
+    var idx = map[String(candidateNames[j]).trim().toLowerCase()];
+    if (idx !== undefined) return idx;
+  }
+  return -1;
 }
 
 function processSyncTask(ss, task) {
@@ -101,108 +73,84 @@ function processSyncTask(ss, task) {
 
   var payload = task.payload;
 
+  // Handle image upload
   if (payload.foto && typeof payload.foto === 'string' && payload.foto.indexOf('data:image/') === 0) {
     try {
-      var base64Data = payload.foto.split(',')[1];
-      var blob = Utilities.newBlob(Utilities.base64Decode(base64Data), 'image/png', (payload.id || 'foto_' + new Date().getTime()) + '.png');
-      var folder = DriveApp.getFolderById(IMAGE_FOLDER_ID);
-      var file = folder.createFile(blob);
-      try {
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      } catch (shareErr) {
-        // Abaikan jika akun Google Workspace sekolah memblokir fitur bagikan publik
-      }
+      var blob = Utilities.newBlob(Utilities.base64Decode(payload.foto.split(',')[1]), 'image/png', (payload.id || 'foto_' + Date.now()) + '.png');
+      var file = DriveApp.getFolderById(IMAGE_FOLDER_ID).createFile(blob);
+      try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
       payload.foto = file.getDownloadUrl() ? file.getDownloadUrl().replace('&gd=true', '') : file.getUrl();
     } catch (e) {
       payload.foto = 'ERROR_UPLOAD: ' + e.toString();
     }
   }
   
-  if (task.action.startsWith('insert')) {
-    var headers = getHeaders(sheet);
-    var newRow = headers.map(function(h) { return payload[h] !== undefined ? payload[h] : ''; });
-    sheet.appendRow(newRow);
-  }
-  else if (task.action.startsWith('update')) {
-    var headers = getHeaders(sheet);
-    var data = sheet.getDataRange().getValues();
-    var idField = sheetName === 'Peminjaman' ? 'newId' : (sheetName === 'Bahan' || sheetName === 'Bahan_Keluar' ? 'ID_Barang' : 'id');
-    var targetId = String(payload[idField] || payload.id || payload.ID_Barang || payload.newId);
-    
-    for (var i = 1; i < data.length; i++) {
-      var idColIdx = headers.indexOf(idField);
-      if (idColIdx === -1) idColIdx = headers.findIndex(function(h) { return String(h).toUpperCase() === 'ID' || String(h).toUpperCase() === 'ID BARANG' || String(h).toUpperCase() === 'ID_BARANG' || String(h).toUpperCase() === 'NEWID'; });
-      
-      var rowId = idColIdx > -1 ? String(data[i][idColIdx]) : "undefined";
-      
-      if (rowId !== "undefined" && targetId !== "undefined" && rowId === targetId) {
-        var rowToUpdate = i + 1;
-        var updateRow = headers.map(function(h) {
-          return payload[h] !== undefined ? payload[h] : data[i][headers.indexOf(h)];
-        });
-        sheet.getRange(rowToUpdate, 1, 1, headers.length).setValues([updateRow]);
-        break;
-      }
-    }
-  }
-  else if (task.action.startsWith('delete')) {
-    var headers = getHeaders(sheet);
-    var data = sheet.getDataRange().getValues();
-    var idField = sheetName === 'Peminjaman' ? 'newId' : (sheetName === 'Bahan' || sheetName === 'Bahan_Keluar' ? 'ID_Barang' : 'id');
-    var targetId = String(payload[idField] || payload.id || payload.newId);
-    
-    for (var i = 1; i < data.length; i++) {
-      var idColIdx = headers.indexOf(idField);
-      if (idColIdx === -1) idColIdx = headers.findIndex(function(h) { return String(h).toUpperCase() === 'ID' || String(h).toUpperCase() === 'ID BARANG' || String(h).toUpperCase() === 'ID_BARANG' || String(h).toUpperCase() === 'NEWID'; });
-      
-      var rowId = idColIdx > -1 ? String(data[i][idColIdx]) : "undefined";
-      
-      // Strict equality check prevents mistaken deletion of row 2
-      if (rowId !== "undefined" && targetId !== "undefined" && rowId === targetId) {
-        sheet.deleteRow(i + 1);
-        break;
+  var headers = getHeaders(sheet);
+  var action = task.action;
+
+  if (action.startsWith('insert')) {
+    sheet.appendRow(headers.map(function(h) { return payload[h] || ''; }));
+  } 
+  else if (action.startsWith('update') || action.startsWith('delete')) {
+    var rowIdx = findRowIndex(sheet, headers, payload, sheetName);
+    if (rowIdx > -1) {
+      if (action.startsWith('update')) {
+        var data = sheet.getDataRange().getValues();
+        var updateRow = headers.map(function(h) { return payload[h] !== undefined ? payload[h] : data[rowIdx][headers.indexOf(h)]; });
+        sheet.getRange(rowIdx + 1, 1, 1, headers.length).setValues([updateRow]);
+      } else {
+        sheet.deleteRow(rowIdx + 1);
       }
     }
   }
 }
 
+function findRowIndex(sheet, headers, payload, sheetName) {
+  var data = sheet.getDataRange().getValues();
+  var idField = sheetName === 'Peminjaman' ? 'newId' : (sheetName === 'Bahan' || sheetName === 'Bahan_Keluar' ? 'ID_Barang' : 'id');
+  var candidates = [];
+  if (payload[idField]) candidates.push(String(payload[idField]));
+  if (payload.id) candidates.push(String(payload.id));
+  if (payload.newId) candidates.push(String(payload.newId));
+  if (payload.ID_Barang) candidates.push(String(payload.ID_Barang));
+  if (payload.nomor_peminjaman) candidates.push(String(payload.nomor_peminjaman));
+
+  var idIdx = getHeaderIndex(headers, [idField, 'id', 'ID', 'ID_Barang', 'ID Barang', 'newId', 'Nomor_Peminjaman', 'nomor_peminjaman']);
+  var nomorIdx = getHeaderIndex(headers, ['nomor_peminjaman', 'Nomor_Peminjaman', 'nomor peminjaman', 'No. Peminjaman', 'trx']);
+
+  for (var i = 1; i < data.length; i++) {
+    var rowId = idIdx > -1 ? String(data[i][idIdx]) : '';
+    var rowNomor = nomorIdx > -1 ? String(data[i][nomorIdx]) : '';
+    var matched = candidates.some(function(c) { return c && rowId === c; });
+    if (!matched && payload.nomor_peminjaman && rowNomor === String(payload.nomor_peminjaman)) matched = true;
+    if (matched) return i;
+  }
+  return -1;
+}
+
 function getCorrectSheetName(storeName) {
-  var mapping = {
-    'users': 'Users',
-    'jurusan': 'Jurusan',
-    'kategori': 'Kategori',
-    'alat': 'Alat',
-    'peminjaman': 'Peminjaman',
-    'bahan': 'Bahan',
-    'bahan_keluar': 'Bahan_Keluar'
-  };
-  return mapping[storeName] || storeName;
+  var map = {'users': 'Users', 'jurusan': 'Jurusan', 'kategori': 'Kategori', 'alat': 'Alat', 'peminjaman': 'Peminjaman', 'bahan': 'Bahan', 'bahan_keluar': 'Bahan_Keluar'};
+  return map[storeName] || storeName;
 }
 
 function getSheetDataAsObjects(sheet) {
   if (!sheet) return [];
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
-  
   var headers = data[0];
   var result = [];
-  
   for (var i = 1; i < data.length; i++) {
     var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      obj[headers[j]] = data[i][j];
-    }
+    for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
     result.push(obj);
   }
   return result;
 }
 
 function getHeaders(sheet) {
-  if (sheet.getLastColumn() === 0) return [];
-  return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  return sheet.getLastColumn() === 0 ? [] : sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 }
 
-function setCORSResponse(jsonObject) {
-  return ContentService.createTextOutput(JSON.stringify(jsonObject))
-    .setMimeType(ContentService.MimeType.JSON);
+function setCORSResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }

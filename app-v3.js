@@ -56,6 +56,9 @@ const app = {
         document.getElementById('btn-logout').addEventListener('click', () => {
             this.handleLogout();
         });
+        document.getElementById('btn-logout-mobile')?.addEventListener('click', () => {
+            this.handleLogout();
+        });
 
         // Test Koneksi
         document.getElementById('btn-test-koneksi')?.addEventListener('click', () => {
@@ -81,10 +84,13 @@ const app = {
 
         // Mobile Sidebar Toggle
         document.getElementById('menu-toggle').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.add('open');
+            this.openSidebar();
         });
         document.getElementById('close-sidebar-btn').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.remove('open');
+            this.closeSidebar();
+        });
+        document.getElementById('sidebar-backdrop')?.addEventListener('click', () => {
+            this.closeSidebar();
         });
 
         // User Form
@@ -250,11 +256,37 @@ const app = {
         // Handle Role-based UI constraints
         this.applyRoleConstraints();
 
+        // Initialize Bottom Navigation and mobile helpers
+        this.initBottomNav();
+        this.initMobileNavigation();
+
         // Pemicu sinkronisasi asinkronous transparan di balakang layar
         this.backgroundSync();
 
-        // Default navigation
+        // Initial badge and section state
+        this.loadActivePeminjaman();
         this.navigate('dashboard');
+    },
+    
+    // ===== MOBILE NAVIGATION ENHANCEMENTS =====
+    initMobileNavigation: function() {
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (!isMobile) return;
+
+        const sidebar = document.getElementById('sidebar');
+        const contentWrapper = document.querySelector('.content-wrapper');
+
+        contentWrapper?.addEventListener('click', () => {
+            if (sidebar?.classList.contains('open')) {
+                this.closeSidebar();
+            }
+        });
+
+        window.addEventListener('popstate', () => {
+            if (sidebar?.classList.contains('open')) {
+                this.closeSidebar();
+            }
+        });
     },
 
     updateHeaderProfile: function () {
@@ -264,8 +296,24 @@ const app = {
         roleBadge.textContent = this.state.user.role;
         roleBadge.style.background = this.state.user.role === 'Admin' ? 'var(--primary)' : 'var(--success)';
         roleBadge.style.color = this.state.user.role === 'Admin' ? '#fff' : '#000';
+        const avatarEl = document.getElementById('user-avatar');
         if (this.state.user.foto) {
-            document.getElementById('user-avatar').src = this.getDriveImageUrl(this.state.user.foto);
+            const avatarUrl = this.getDriveImageUrl(this.state.user.foto);
+            avatarEl.dataset.fallbackTried = '0';
+            avatarEl.onerror = () => {
+                if (this.state.user.foto && avatarEl.dataset.fallbackTried === '0') {
+                    avatarEl.dataset.fallbackTried = '1';
+                    avatarEl.src = this.state.user.foto; // fallback to original URL if Drive thumbnail fails
+                    return;
+                }
+                avatarEl.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect width=%2248%22 height=%2248%22 rx=%2224%22 fill=%22%23343A40%22/%3E%3Ctext x=%2224%22 y=%2228%22 font-size=%2224%22 fill=%22%23F8FAFC%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22%3F%3C/text%3E%3C/svg%3E';
+                avatarEl.classList.add('no-avatar');
+            };
+            avatarEl.src = avatarUrl;
+            avatarEl.classList.remove('no-avatar');
+        } else {
+            avatarEl.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect width=%2248%22 height=%2248%22 rx=%2224%22 fill=%22%23343A40%22/%3E%3Ctext x=%2224%22 y=%2228%22 font-size=%2224%22 fill=%22%23F8FAFC%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22%3F%3C/text%3E%3C/svg%3E';
+            avatarEl.classList.add('no-avatar');
         }
     },
 
@@ -277,6 +325,10 @@ const app = {
         const img = document.getElementById('prof-foto-img');
         const icon = document.getElementById('prof-foto-icon');
         if (this.state.user.foto) {
+            img.onerror = () => {
+                img.style.display = 'none';
+                icon.style.display = 'block';
+            };
             img.src = this.getDriveImageUrl(this.state.user.foto);
             img.style.display = 'block';
             icon.style.display = 'none';
@@ -370,43 +422,51 @@ const app = {
     },
 
     navigate: function (targetId) {
-        // Update active nav link
-        document.querySelectorAll('.nav-links li').forEach(item => {
-            item.classList.remove('active');
-            if (item.getAttribute('data-target') === targetId) {
-                item.classList.add('active');
+        if (!targetId) {
+            targetId = 'dashboard';
+        }
+
+        this.setActiveNavigation(targetId);
+        this.state.currentView = targetId;
+
+        const targetSectionId = `${targetId}-section`;
+        const targetSection = document.getElementById(targetSectionId);
+
+        document.querySelectorAll('.content-section').forEach(section => {
+            if (section.id === targetSectionId) return;
+            if (!section.classList.contains('hidden')) {
+                section.style.opacity = '0';
+                setTimeout(() => {
+                    section.classList.add('hidden');
+                    section.classList.remove('section-active');
+                    section.style.opacity = '1';
+                }, 150);
             }
         });
 
-        // Hide all sections
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.add('hidden');
-            section.classList.remove('section-active');
-        });
+        if (targetSection) {
+            targetSection.classList.remove('hidden');
+            targetSection.classList.add('section-active');
+            targetSection.style.opacity = '0';
+            setTimeout(() => { targetSection.style.opacity = '1'; }, 10);
 
-        // Show target section
-        const section = document.getElementById(`${targetId}-section`);
-        if (section) {
-            section.classList.remove('hidden');
-            section.classList.add('section-active');
-
-            // Update Page Title
             const titleMap = {
                 'dashboard': 'Dashboard',
                 'peminjaman': 'Peminjaman Alat',
                 'riwayat': 'Riwayat Peminjaman',
                 'alat': 'Data Alat',
                 'kategori': 'Kategori Alat',
-                'users': 'Manajemen User'
+                'users': 'Manajemen User',
+                'bahan': 'Bahan Praktik',
+                'bahan_keluar': 'Bahan Keluar'
             };
             document.getElementById('page-title').textContent = titleMap[targetId] || 'Halaman';
-            // Load section data
             this.loadSectionData(targetId);
         }
 
-        // Close sidebar on mobile
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('open');
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            this.closeSidebar();
+            document.querySelector('.content-wrapper').scrollTop = 0;
         }
     },
 
@@ -520,6 +580,7 @@ const app = {
             this.loadActivePeminjaman();
         } else if (section === 'riwayat') {
             this.loadRiwayat();
+            setTimeout(() => this.initSearchAndFilter(), 100);
         } else if (section === 'bahan') {
             this.loadBahan();
         } else if (section === 'bahan_keluar') {
@@ -852,7 +913,7 @@ const app = {
         if (url.startsWith('data:image')) return url; // Offline base64 caching
         const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (match && match[1]) {
-            return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`; // Extract ID and use thumbnail API
+            return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;
         }
         return url;
     },
@@ -979,11 +1040,11 @@ const app = {
                 gridItem.className = 'alat-grid-item';
                 gridItem.innerHTML = `
                     ${imgUrl ? `<img src="${imgUrl}" class="alat-grid-img">` : `<div class="alat-grid-img" style="display:flex; align-items:center; justify-content:center"><i class="ph ph-image" style="font-size: 3rem; color:var(--text-muted)"></i></div>`}
-                    <div style="font-size: 0.75rem; color: var(--text-muted); display:flex; justify-content:space-between;">
-                        <span>${a.kode_seri}</span>
-                        <span class="badge" style="padding: 0.1rem 0.4rem; font-size:0.7rem;">${katName}</span>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); display:flex; justify-content:space-between; gap: 0.3rem; min-width: 0;">
+                        <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.kode_seri}</span>
+                        <span class="badge">${katName}</span>
                     </div>
-                    <h4 style="margin: 0;">${a.nama}</h4>
+                    <h4>${a.nama}</h4>
                     <div style="font-size: 0.85rem; display: flex; justify-content: space-between; margin-top: auto;">
                         <span>Stok: <b>${a.jumlah_tersedia}</b>/${a.jumlah_total}</span>
                         <span style="color: ${a.kondisi === 'Baik' ? 'var(--success)' : 'var(--warning)'}">${a.kondisi}</span>
@@ -1100,6 +1161,14 @@ const app = {
         }
     },
 
+    triggerAlatFotoCamera: function () {
+        document.getElementById('alat-foto-file-camera')?.click();
+    },
+
+    triggerAlatFotoGallery: function () {
+        document.getElementById('alat-foto-file-gallery')?.click();
+    },
+
     handleFotoUpload: function (event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -1178,6 +1247,7 @@ const app = {
 
     loadActivePeminjaman: async function () {
         const rawData = await db.getAll('peminjaman');
+        this.state.peminjaman = rawData;
         const filtered = this.getFilteredData(rawData);
         const data = filtered.filter(p => p.status && p.status.trim().toUpperCase() === 'DIPINJAM').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -1186,6 +1256,9 @@ const app = {
 
         tbody.innerHTML = '';
         countBadge.textContent = `${data.length} Aktif`;
+        
+        // Update bottom nav badge
+        this.updatePeminjamanBadge();
 
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted);">Tidak ada peminjaman aktif saat ini</td></tr>';
@@ -1396,7 +1469,10 @@ const app = {
             }
         }, 100);
 
-        db.syncToServer();
+        const syncOk = await db.syncToServer();
+        if (!syncOk) {
+            this.showToast('Peminjaman tersimpan lokal dan menunggu sinkronisasi saat online.', 'warning');
+        }
     },
 
     cetakReceipt: async function (p) {
@@ -1784,12 +1860,15 @@ const app = {
         }
 
         this.hideLoading();
-        this.showToast('Peminjaman berhasil diselesaikan', 'success');
+        const syncOk = await db.syncToServer();
+        if (syncOk) {
+            this.showToast('Peminjaman berhasil diselesaikan', 'success');
+        } else {
+            this.showToast('Status pengembalian tersimpan lokal dan menunggu sinkronisasi saat online.', 'warning');
+        }
         this.loadRiwayat();
         this.loadActivePeminjaman();
         this.loadDashboard();
-
-        db.syncToServer();
     },
 
     exportRiwayat: async function () {
@@ -2629,8 +2708,214 @@ const app = {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    },
+
+    // ===== BOTTOM NAVIGATION =====
+    initBottomNav: function() {
+        document.querySelectorAll('.bottom-nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const target = item.getAttribute('data-target');
+                if (target) {
+                    this.navigate(target);
+                }
+            });
+        });
+    },
+
+    openSidebar: function() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (sidebar) sidebar.classList.add('open');
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.classList.add('visible');
+        }
+        document.body.classList.add('sidebar-open');
+    },
+
+    closeSidebar: function() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (sidebar) sidebar.classList.remove('open');
+        if (backdrop) {
+            backdrop.classList.remove('visible');
+            backdrop.classList.add('hidden');
+        }
+        document.body.classList.remove('sidebar-open');
+    },
+
+    setActiveNavigation: function(targetId) {
+        document.querySelectorAll('.nav-links li').forEach(item => {
+            item.classList.toggle('active', item.getAttribute('data-target') === targetId);
+        });
+        document.querySelectorAll('.bottom-nav-item').forEach(item => {
+            item.classList.toggle('active', item.getAttribute('data-target') === targetId);
+        });
+    },
+
+    // Update notification badge untuk peminjaman active
+    updatePeminjamanBadge: function() {
+        const active = (this.state.peminjaman || []).filter(p => p.status === 'DIPINJAM').length;
+        const badge = document.querySelector('.bottom-nav-item[data-target="peminjaman"] .badge-count');
+        
+        if (badge) {
+            if (active > 0) {
+                badge.textContent = active > 99 ? '99+' : active;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    },
+
+    // ===== SEARCH & FILTER =====
+    initSearchAndFilter: function() {
+        const searchInput = document.getElementById('search-riwayat');
+        const monthFilter = document.getElementById('filter-bulan-riwayat');
+        const yearFilter = document.getElementById('filter-tahun-riwayat');
+        const timelineBtn = document.getElementById('btn-riwayat-timeline');
+        
+        [searchInput, monthFilter, yearFilter].forEach(el => {
+            if (el) el.addEventListener('change', () => this.applyRiwayatFilters());
+        });
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                clearTimeout(this.searchTimeout);
+                this.searchTimeout = setTimeout(() => this.applyRiwayatFilters(), 300);
+            });
+        }
+        
+        if (timelineBtn) {
+            timelineBtn.addEventListener('click', () => this.toggleTimelineView());
+        }
+    },
+
+    applyRiwayatFilters: function() {
+        const search = document.getElementById('search-riwayat')?.value.toLowerCase() || '';
+        const bulan = document.getElementById('filter-bulan-riwayat')?.value || '';
+        const tahun = document.getElementById('filter-tahun-riwayat')?.value || '';
+        
+        const rows = document.querySelectorAll('#table-riwayat tbody tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const tgl = row.querySelector('td:nth-child(3)')?.textContent || '';
+            const matchSearch = !search || text.includes(search);
+            const matchBulan = !bulan || tgl.includes('/' + bulan);
+            const matchTahun = !tahun || tgl.includes(tahun);
+            const visible = matchSearch && matchBulan && matchTahun;
+            row.style.display = visible ? '' : 'none';
+            if (visible) visibleCount++;
+        });
+        
+        this.updateFilterChips(search, bulan, tahun);
+    },
+
+    updateFilterChips: function(search, bulan, tahun) {
+        const container = document.getElementById('filter-chips-riwayat');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        if (search) {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            chip.innerHTML = `<i class="ph ph-magnifying-glass"></i> "${search}"`;
+            container.appendChild(chip);
+        }
+        if (bulan) {
+            const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            chip.innerHTML = `<i class="ph ph-calendar"></i> ${bulanNames[parseInt(bulan)]}`;
+            container.appendChild(chip);
+        }
+        if (tahun) {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            chip.innerHTML = `<i class="ph ph-calendar"></i> ${tahun}`;
+            container.appendChild(chip);
+        }
+    },
+
+    // ===== TIMELINE VIEW =====
+    toggleTimelineView: function() {
+        const tableView = document.getElementById('riwayat-table-view');
+        const timelineView = document.getElementById('riwayat-timeline-view');
+        const btn = document.getElementById('btn-riwayat-timeline');
+        
+        if (!tableView || !timelineView || !btn) return;
+        
+        const showTimeline = tableView.classList.contains('hidden');
+        tableView.classList.toggle('hidden');
+        timelineView.classList.toggle('hidden');
+        btn.classList.toggle('active', showTimeline);
+        
+        if (showTimeline) this.renderTimelineView();
+    },
+
+    renderTimelineView: function() {
+        const container = document.getElementById('riwayat-timeline-view');
+        if (!container || !this.state.peminjaman) return;
+        
+        let filtered = this.state.peminjaman.filter(p => {
+            const row = document.querySelector(`#table-riwayat tbody tr:has(td:contains("${p.nomor_peminjaman}"))`);
+            return !row || row.style.display !== 'none';
+        });
+        
+        filtered.sort((a, b) => new Date(b.tanggal_pinjam || 0) - new Date(a.tanggal_pinjam || 0));
+        
+        container.innerHTML = filtered.map(p => {
+            const isPinjam = p.status === 'DIPINJAM';
+            const isKembali = p.status === 'KEMBALI';
+            const tglKembali = new Date(p.tanggal_kembali_estimasi || '');
+            const isOverdue = isPinjam && tglKembali < new Date();
+            
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-marker ${isKembali ? 'returned' : isOverdue ? 'overdue' : ''}">
+                        <i class="ph ${isKembali ? 'ph-check' : 'ph-minus'}"></i>
+                    </div>
+                    <div class="timeline-card">
+                        <div class="timeline-date">${new Date(p.tanggal_pinjam).toLocaleDateString('id-ID')}</div>
+                        <div class="timeline-header">
+                            <div>
+                                <div class="timeline-title">${p.nama_peminjam}</div>
+                                <div style="font-size:0.8rem; color:var(--text-muted);">${p.kelas || 'N/A'}</div>
+                            </div>
+                            <span class="timeline-status-badge ${isKembali ? 'returned' : isOverdue ? 'overdue' : ''}">
+                                ${isKembali ? 'KEMBALI' : isOverdue ? 'OVERDUE' : 'DIPINJAM'}
+                            </span>
+                        </div>
+                        <div class="timeline-details">
+                            <div class="timeline-detail-item">
+                                <div class="timeline-detail-label">TRX</div>
+                                <div class="timeline-detail-value">${p.nomor_peminjaman || '-'}</div>
+                            </div>
+                            <div class="timeline-detail-item">
+                                <div class="timeline-detail-label">Alat</div>
+                                <div class="timeline-detail-value">${p.nama_alat || '-'}</div>
+                            </div>
+                            <div class="timeline-detail-item">
+                                <div class="timeline-detail-label">Tgl Kembali</div>
+                                <div class="timeline-detail-value">${p.tanggal_kembali_estimasi ? new Date(p.tanggal_kembali_estimasi).toLocaleDateString('id-ID') : '-'}</div>
+                            </div>
+                            <div class="timeline-detail-item">
+                                <div class="timeline-detail-label">Kondisi</div>
+                                <div class="timeline-detail-value">${p.kondisi_alat || '-'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        if (filtered.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Tidak ada data yang cocok</div>';
+        }
     }
-};
+}
 
 // CSS for toasts to append dynamically if not in style.css
 const style = document.createElement('style');

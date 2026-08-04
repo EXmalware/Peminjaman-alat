@@ -118,6 +118,20 @@
                     <button id="btn-logout" class="btn-logout"><i class="ph ph-sign-out"></i> <span>Logout</span></button>
                 </div>
             </nav>
+            <div id="sidebar-backdrop" class="sidebar-backdrop hidden"></div>
+
+            <!-- Bottom Navigation (Mobile Only) -->
+            <nav class="bottom-nav">
+                <button class="bottom-nav-item active" data-target="dashboard"><i class="ph ph-squares-four"></i><span>Beranda</span></button>
+                <button class="bottom-nav-item" data-target="alat"><i class="ph ph-toolbox"></i><span>Alat</span></button>
+                <button class="bottom-nav-item" data-target="peminjaman">
+                    <i class="ph ph-hand-coins"></i>
+                    <span>Pinjam</span>
+                    <div class="badge-count" style="display:none;"></div>
+                </button>
+                <button class="bottom-nav-item" data-target="riwayat"><i class="ph ph-clock-counter-clockwise"></i><span>Riwayat</span></button>
+                <button class="bottom-nav-item" data-target="users" style="display:none;"><i class="ph ph-user"></i><span>Profil</span></button>
+            </nav>
 
             <!-- Main Content Area -->
             <main class="main-content">
@@ -128,10 +142,11 @@
                         <button id="menu-toggle" class="menu-toggle"><i class="ph ph-list"></i></button>
                         <h2 id="page-title">Dashboard</h2>
                     </div>
-                    <div class="topbar-right" style="gap: 1rem;">
+                    <div class="topbar-right">
                         <div id="main-network-status" class="badge hidden" style="border-radius:1rem; padding: 0.3rem 0.8rem; font-size:0.85rem; font-weight: 500; display:flex; align-items:center; gap:0.4rem;"></div>
                         <button id="btn-sync" class="btn-icon" title="Sinkronisasi Data" onclick="app.backgroundSync()"><i class="ph ph-arrows-clockwise"></i></button>
-                        <div class="user-profile" onclick="app.openProfileModal()" style="cursor:pointer;" title="Pengaturan Profil">
+                        <button id="btn-logout-mobile" class="btn-logout-mobile" title="Logout"><i class="ph ph-sign-out"></i></button>
+                        <div class="user-profile" onclick="app.openProfileModal()" title="Pengaturan Profil">
                             <img src="" alt="Profile" id="user-avatar" class="avatar default-avatar">
                             <span id="user-name-display">User</span>
                             <span id="user-role-badge" class="badge">Role</span>
@@ -328,13 +343,22 @@
                     <!-- Section: Riwayat Peminjaman -->
                     <section id="riwayat-section" class="content-section hidden">
                         <div class="glass-card">
-                            <div class="card-header flex-header">
+                            <div class="card-header flex-header" style="flex-wrap: wrap; gap: 1rem;">
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
                                     <div class="stat-icon bg-green" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-clock-counter-clockwise"></i></div>
                                     <h3>Riwayat Peminjaman</h3>
                                 </div>
-                                <div style="display:flex; gap:0.5rem; align-items:center;">
-                                    <select id="filter-bulan-riwayat" style="padding: 0.3rem; border-radius: 6px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.1); font-size:0.85rem;">
+                            </div>
+                            
+                            <!-- Enhanced Search & Filter Bar -->
+                            <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1rem;">
+                                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                                    <div class="search-box-embedded" style="flex: 1; min-width: 200px;">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                        <input type="text" id="search-riwayat" placeholder="Cari nama, nomor TRX, atau kelas..." style="flex: 1; border: none; background: transparent; color: white; outline: none; font-size: 0.95rem;">
+                                    </div>
+                                    <button id="btn-riwayat-timeline" class="btn btn-outline btn-sm" title="Tampil Timeline"><i class="ph ph-list-bullets"></i></button>
+                                    <select id="filter-bulan-riwayat" class="input-sm">
                                         <option value="">Semua Bulan</option>
                                         <option value="01">Januari</option>
                                         <option value="02">Februari</option>
@@ -349,7 +373,7 @@
                                         <option value="11">November</option>
                                         <option value="12">Desember</option>
                                     </select>
-                                    <select id="filter-tahun-riwayat" style="padding: 0.3rem; border-radius: 6px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.1); font-size:0.85rem;">
+                                    <select id="filter-tahun-riwayat" class="input-sm">
                                         <option value="">Semua Tahun</option>
                                         <option value="2025">2025</option>
                                         <option value="2026">2026</option>
@@ -358,10 +382,13 @@
                                         <option value="2029">2029</option>
                                         <option value="2030">2030</option>
                                     </select>
-                                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayat()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger); white-space: nowrap;" onclick="app.exportRiwayat()"><i class="ph ph-file-pdf"></i> PDF</button>
                                 </div>
+                                <div id="filter-chips-riwayat" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;"></div>
                             </div>
-                            <div class="table-responsive">
+                            
+                            <!-- Table View (Default) -->
+                            <div id="riwayat-table-view" class="table-responsive">
                                 <table id="table-riwayat" class="table-modern neat-table">
                                     <thead>
                                         <tr>
@@ -376,6 +403,11 @@
                                         <!-- Dynamic rows -->
                                     </tbody>
                                 </table>
+                            </div>
+                            
+                            <!-- Timeline View -->
+                            <div id="riwayat-timeline-view" class="hidden timeline-container" style="padding: 2rem 1.5rem;">
+                                <!-- Dynamically populated timeline items -->
                             </div>
                         </div>
                     </section>
@@ -418,7 +450,7 @@
                             </div>
                             
                             <div id="alat-grid-container" class="alat-grid-wrapper hidden" style="padding: 1.5rem;">
-                                <div class="alat-grid" id="grid-alat" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem;">
+                                <div class="alat-grid" id="grid-alat" style="display: grid; gap: 1rem;">
                                     <!-- Populated by JS -->
                                 </div>
                             </div>
@@ -599,8 +631,12 @@
                                 <div id="foto-preview" style="width:150px; height:150px; background:rgba(255,255,255,0.05); border: 2px dashed var(--border-color); border-radius: var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom: 0.5rem; overflow:hidden;">
                                     <i class="ph ph-image" style="font-size: 3rem; color: var(--text-muted)"></i>
                                 </div>
-                                <input type="file" id="alat-foto-file" accept="image/*" style="display:none;" onchange="app.handleFotoUpload(event)">
-                                <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('alat-foto-file').click()">Pilih Foto</button>
+                                <input type="file" id="alat-foto-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="app.handleFotoUpload(event)">
+                                <input type="file" id="alat-foto-file-gallery" accept="image/*" style="display:none;" onchange="app.handleFotoUpload(event)">
+                                <div style="display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="app.triggerAlatFotoCamera()">Ambil Foto</button>
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="app.triggerAlatFotoGallery()">Pilih Galeri</button>
+                                </div>
                             </div>
                             
                             <!-- Form Fields -->

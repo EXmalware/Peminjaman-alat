@@ -39,6 +39,9 @@ self.addEventListener('fetch', (e) => {
     // Only intercept basic GET requests
     if (e.request.method !== 'GET') return;
     
+    // Only cache valid http/https URLs (skip chrome-extension, file:, data:, etc)
+    if (!e.request.url.startsWith('http://') && !e.request.url.startsWith('https://')) return;
+    
     // Ignore external APIs that we handle via db sync logic
     if (e.request.url.includes('script.google.com')) return;
 
@@ -53,20 +56,6 @@ self.addEventListener('fetch', (e) => {
             }).catch(() => {
                 return response;
             });
-        })
-    );
-});
-
-self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches.keys().then((keyList) => {
-            return Promise.all(
-                keyList.map((key) => {
-                    if (key !== CACHE_NAME) {
-                        return caches.delete(key);
-                    }
-                })
-            );
         })
     );
 });

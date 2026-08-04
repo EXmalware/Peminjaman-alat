@@ -82,17 +82,75 @@ const db = {
         }
     },
 
+    queueHasBeenApplied: function (serverData, queue) {
+        const serverPeminjaman = serverData?.peminjaman || [];
+        const serverAlat = serverData?.alat || [];
+
+        return queue.every((task) => {
+            const payload = task.payload || {};
+            const action = task.action || '';
+            const storeName = task.storeName || '';
+
+            if (storeName === 'peminjaman') {
+                const idCandidates = [payload.newId, payload.id, payload.ID_Barang, payload.nomor_peminjaman]
+                    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+                const match = serverPeminjaman.find((item) => {
+                    const itemId = String(item.newId || item.id || item.ID_Barang || '');
+                    const itemNomor = String(item.nomor_peminjaman || '');
+                    return idCandidates.some((candidate) => String(candidate) === itemId || String(candidate) === itemNomor);
+                });
+
+                if (action === 'delete_peminjaman') {
+                    return !match;
+                }
+
+                if (!match) return false;
+
+                if (payload.status && String(match.status || '').toUpperCase() !== String(payload.status).toUpperCase()) {
+                    return false;
+                }
+
+                if (payload.tanggal_kembali_aktual && String(match.tanggal_kembali_aktual || '') !== String(payload.tanggal_kembali_aktual)) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            if (storeName === 'alat') {
+                const idCandidates = [payload.newId, payload.id, payload.ID_Barang]
+                    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+                const match = serverAlat.find((item) => {
+                    const itemId = String(item.newId || item.id || item.ID_Barang || '');
+                    return idCandidates.some((candidate) => String(candidate) === itemId);
+                });
+
+                if (!match) return false;
+
+                if (payload.jumlah_tersedia !== undefined && Number(match.jumlah_tersedia) !== Number(payload.jumlah_tersedia)) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            return true;
+        });
+    },
+
     // Perform Sync to Server
     syncToServer: async function () {
-        if (!navigator.onLine) return;
-        if (!this.GAS_URL || this.GAS_URL.includes('REPLACE')) return;
+        if (!navigator.onLine) return false;
+        if (!this.GAS_URL || this.GAS_URL.includes('REPLACE')) return false;
 
         const queue = await this.getAll('syncQueue');
-        if (queue.length === 0) return; // Nothing to sync
+        if (queue.length === 0) return true; // Nothing to sync
 
         try {
             console.log("Mencoba sync", queue.length, "data ke gsheet...");
-            
+
             // Kirim secara "blind" menggunakan mode no-cors untuk mengelabui proteksi browser
             await fetch(this.GAS_URL, {
                 method: 'POST',
@@ -103,26 +161,35 @@ const db = {
 
             // Beri jeda 2 detik agar Google Apps Script sempat menyimpan ke baris spreadsheet
             await new Promise(r => setTimeout(r, 2000));
-            
+
             // Tarik ulang data GET (karena GET selalu diizinkan) untuk memastikan data masuk
             const respGet = await fetch(this.GAS_URL + '?action=get_data');
             const resultData = await respGet.json();
-            
+
             if (resultData && resultData.status === 'success') {
-                // Dianggap sukses dan queue lokal boleh dikosongkan
+                const applied = this.queueHasBeenApplied(resultData, queue);
+                if (!applied) {
+                    console.warn('Sinkronisasi belum terlihat di server, queue dipertahankan.');
+                    return false;
+                }
+
                 await this.stores.syncQueue.clear();
-                
+
                 await this.saveMasterData('users', resultData.users);
                 await this.saveMasterData('jurusan', resultData.jurusan);
                 await this.saveMasterData('kategori', resultData.kategori);
                 await this.saveMasterData('alat', resultData.alat);
                 await this.saveMasterData('peminjaman', resultData.peminjaman);
-                if(resultData.bahan) await this.saveMasterData('bahan', resultData.bahan);
-                if(resultData.bahan_keluar) await this.saveMasterData('bahan_keluar', resultData.bahan_keluar);
+                if (resultData.bahan) await this.saveMasterData('bahan', resultData.bahan);
+                if (resultData.bahan_keluar) await this.saveMasterData('bahan_keluar', resultData.bahan_keluar);
                 console.log("Sync sukses!");
+                return true;
             }
+
+            return false;
         } catch (e) {
             console.error('Silently failed POST sync:', e);
+            return false;
         }
     }
 };
