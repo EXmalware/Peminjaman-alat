@@ -291,7 +291,11 @@ const app = {
 
     updateHeaderProfile: function () {
         if (!this.state.user) return;
-        document.getElementById('user-name-display').textContent = this.state.user.full_name || this.state.user.username;
+        const nameForInitial = this.state.user.full_name || this.state.user.username || '?';
+        const initial = encodeURIComponent(nameForInitial.charAt(0).toUpperCase());
+        const defaultAvatar = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect width=%2248%22 height=%2248%22 rx=%2224%22 fill=%22%23343A40%22/%3E%3Ctext x=%2224%22 y=%2228%22 font-size=%2224%22 fill=%22%23F8FAFC%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22%3E${initial}%3C/text%3E%3C/svg%3E`;
+
+        document.getElementById('user-name-display').textContent = nameForInitial;
         const roleBadge = document.getElementById('user-role-badge');
         roleBadge.textContent = this.state.user.role;
         roleBadge.style.background = this.state.user.role === 'Admin' ? 'var(--primary)' : 'var(--success)';
@@ -306,13 +310,13 @@ const app = {
                     avatarEl.src = this.state.user.foto; // fallback to original URL if Drive thumbnail fails
                     return;
                 }
-                avatarEl.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect width=%2248%22 height=%2248%22 rx=%2224%22 fill=%22%23343A40%22/%3E%3Ctext x=%2224%22 y=%2228%22 font-size=%2224%22 fill=%22%23F8FAFC%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22%3F%3C/text%3E%3C/svg%3E';
+                avatarEl.src = defaultAvatar;
                 avatarEl.classList.add('no-avatar');
             };
             avatarEl.src = avatarUrl;
             avatarEl.classList.remove('no-avatar');
         } else {
-            avatarEl.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect width=%2248%22 height=%2248%22 rx=%2224%22 fill=%22%23343A40%22/%3E%3Ctext x=%2224%22 y=%2228%22 font-size=%2224%22 fill=%22%23F8FAFC%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22%3F%3C/text%3E%3C/svg%3E';
+            avatarEl.src = defaultAvatar;
             avatarEl.classList.add('no-avatar');
         }
     },
@@ -911,6 +915,12 @@ const app = {
     getDriveImageUrl: function (url) {
         if (!url) return '';
         if (url.startsWith('data:image')) return url; // Offline base64 caching
+        
+        // Jika input dari spreadsheet HANYA berupa ID mentah (tanpa link https://)
+        if (/^[a-zA-Z0-9_-]{25,40}$/.test(url)) {
+            return `https://drive.google.com/thumbnail?id=${url}&sz=w400`;
+        }
+
         const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (match && match[1]) {
             return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;
@@ -1089,6 +1099,7 @@ const app = {
         document.getElementById('alat-form').reset();
         document.getElementById('alat-id').value = '';
         document.getElementById('alat-foto-url').value = '';
+        document.getElementById('alat-keterangan').value = '';
         document.getElementById('foto-preview').innerHTML = '<i class="ph ph-image" style="font-size: 3rem; color: var(--text-muted)"></i>';
 
         const jurusanBox = document.getElementById('alat-jurusan').closest('div');
@@ -1116,6 +1127,7 @@ const app = {
         document.getElementById('alat-total').value = a.jumlah_total;
         document.getElementById('alat-tersedia').value = a.jumlah_tersedia;
         document.getElementById('alat-kondisi').value = a.kondisi;
+        document.getElementById('alat-keterangan').value = a.keterangan || a.Keterangan || '';
         document.getElementById('alat-foto-url').value = a.foto || '';
 
 
@@ -1194,6 +1206,7 @@ const app = {
             jumlah_total: parseInt(document.getElementById('alat-total').value),
             jumlah_tersedia: parseInt(document.getElementById('alat-tersedia').value),
             kondisi: document.getElementById('alat-kondisi').value,
+            keterangan: document.getElementById('alat-keterangan').value,
             jurusan_id: this.state.user.role === 'Admin' ? document.getElementById('alat-jurusan').value : this.state.user.jurusan_id,
             foto: document.getElementById('alat-foto-url').value, // base64 or URL
             created_by: this.state.user.id
@@ -1860,15 +1873,15 @@ const app = {
         }
 
         this.hideLoading();
-        const syncOk = await db.syncToServer();
-        if (syncOk) {
-            this.showToast('Peminjaman berhasil diselesaikan', 'success');
-        } else {
-            this.showToast('Status pengembalian tersimpan lokal dan menunggu sinkronisasi saat online.', 'warning');
-        }
+        this.showToast('Peminjaman berhasil diselesaikan (Sinkronisasi latar belakang...)', 'success');
+        
+        // Update UI secara instan (Optimistic Update)
         this.loadRiwayat();
         this.loadActivePeminjaman();
         this.loadDashboard();
+
+        // Lakukan sinkronisasi tanpa menahan thread / UI (Fire and Forget)
+        db.syncToServer();
     },
 
     exportRiwayat: async function () {

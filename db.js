@@ -17,6 +17,7 @@ const db = {
 
     // Backend Web App URL (To be filled by user)
     GAS_URL: 'https://script.google.com/macros/s/AKfycbxW8qZzLOcnAMOql7FQxZQGqYFp5cks8V3VxGhy9HR760-zweNFHVZPMqrjqmpOD0D1/exec',
+    SPREADSHEET_ID: '1xjZqhlt6RxFUHtFbkNE_1nqyph1xbA78jtIYz98A6vw',
 
     init: async function () {
         // Register Service Worker for PWA
@@ -54,31 +55,93 @@ const db = {
         return task;
     },
 
-    // Fetch data from Google Apps Script Backend
-    fetchServerData: async function () {
+    // Fetch data directly from Google Sheets API for blazing fast reads
+    fetchServerData: async function (saveToLocal = true) {
         if (!navigator.onLine) return null;
-        if (!this.GAS_URL || this.GAS_URL.includes('REPLACE')) {
-            console.warn("GAS_URL not set. Running in local-only mode.");
-            return null;
-        }
+        if (!this.SPREADSHEET_ID) return null;
 
         try {
-            const resp = await fetch(this.GAS_URL + '?action=get_data');
-            const data = await resp.json();
-            if (data.status === 'success') {
-                await this.saveMasterData('users', data.users);
-                await this.saveMasterData('jurusan', data.jurusan);
-                await this.saveMasterData('kategori', data.kategori);
-                await this.saveMasterData('alat', data.alat);
-                await this.saveMasterData('peminjaman', data.peminjaman);
-                if(data.bahan) await this.saveMasterData('bahan', data.bahan);
-                if(data.bahan_keluar) await this.saveMasterData('bahan_keluar', data.bahan_keluar);
-                return true;
+            const sheets = [
+                { name: 'Users', store: 'users' },
+                { name: 'Jurusan', store: 'jurusan' },
+                { name: 'Kategori', store: 'kategori' },
+                { name: 'Alat', store: 'alat' },
+                { name: 'Peminjaman', store: 'peminjaman' },
+                { name: 'Bahan', store: 'bahan' },
+                { name: 'Bahan_Keluar', store: 'bahan_keluar' }
+            ];
+
+            const fetchSheet = async (sheetObj) => {
+                const url = `https://docs.google.com/spreadsheets/d/${this.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetObj.name}`;
+                const resp = await fetch(url);
+                const text = await resp.text();
+                // Ekstrak JSON dari respons JSONP ala Google
+                const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                
+                try {
+                    const json = JSON.parse(jsonStr);
+                    const data = [];
+                    if (json && json.table && json.table.cols && json.table.rows) {
+                        const headers = json.table.cols.map(c => c.label);
+                        for (let r = 0; r < json.table.rows.length; r++) {
+                            const row = json.table.rows[r];
+                            if (!row || !row.c) continue;
+                            const obj = {};
+                            let hasData = false;
+                            for (let c = 0; c < headers.length; c++) {
+                                if (headers[c]) {
+                                    let cell = row.c[c];
+                                    let val = '';
+                                    if (cell) {
+                                        if (cell.v !== null && cell.v !== undefined) {
+                                            if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+                                                const parts = cell.v.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+                                                if (parts) {
+                                                    const y = parseInt(parts[1]);
+                                                    const m = parseInt(parts[2]); // bulan di gviz dimulai dari 0
+                                                    const d = parseInt(parts[3]);
+                                                    const hr = parts[4] ? parseInt(parts[4]) : 0;
+                                                    const min = parts[5] ? parseInt(parts[5]) : 0;
+                                                    const sec = parts[6] ? parseInt(parts[6]) : 0;
+                                                    const pad = n => n.toString().padStart(2, '0');
+                                                    val = `${y}-${pad(m+1)}-${pad(d)}T${pad(hr)}:${pad(min)}:${pad(sec)}.000Z`;
+                                                } else {
+                                                    val = cell.f !== undefined ? cell.f : cell.v;
+                                                }
+                                            } else {
+                                                val = cell.v;
+                                            }
+                                        } else if (cell.f !== undefined) {
+                                            val = cell.f;
+                                        }
+                                    }
+                                    obj[headers[c]] = val;
+                                    if (val !== '') hasData = true;
+                                }
+                            }
+                            if (hasData) data.push(obj);
+                        }
+                    }
+                    return { store: sheetObj.store, data: data };
+                } catch(e) {
+                    return { store: sheetObj.store, data: [] }; // abaikan jika sheet kosong/error
+                }
+            };
+
+            const results = await Promise.all(sheets.map(fetchSheet));
+            const serverDataObj = {};
+            for (const res of results) {
+                if (res.data.length > 0 || res.store === 'peminjaman' || res.store === 'alat') { 
+                    if (saveToLocal) {
+                        await this.saveMasterData(res.store, res.data);
+                    }
+                    serverDataObj[res.store] = res.data;
+                }
             }
-            return false;
+            return serverDataObj;
         } catch (e) {
             console.error('Fetch server data failed', e);
-            return false;
+            return null;
         }
     },
 
@@ -148,6 +211,9 @@ const db = {
         const queue = await this.getAll('syncQueue');
         if (queue.length === 0) return true; // Nothing to sync
 
+        if (this._isSyncing) return false;
+        this._isSyncing = true;
+        
         try {
             console.log("Mencoba sync", queue.length, "data ke gsheet...");
 
@@ -162,33 +228,34 @@ const db = {
             // Beri jeda 2 detik agar Google Apps Script sempat menyimpan ke baris spreadsheet
             await new Promise(r => setTimeout(r, 2000));
 
-            // Tarik ulang data GET (karena GET selalu diizinkan) untuk memastikan data masuk
-            const respGet = await fetch(this.GAS_URL + '?action=get_data');
-            const resultData = await respGet.json();
+            // Tarik ulang data menggunakan gviz yang super cepat (tanpa menyimpan ke local dulu)
+            const resultData = await this.fetchServerData(false);
 
-            if (resultData && resultData.status === 'success') {
+            if (resultData) {
                 const applied = this.queueHasBeenApplied(resultData, queue);
                 if (!applied) {
                     console.warn('Sinkronisasi belum terlihat di server, queue dipertahankan.');
+                    this._isSyncing = false;
                     return false;
                 }
 
                 await this.stores.syncQueue.clear();
-
-                await this.saveMasterData('users', resultData.users);
-                await this.saveMasterData('jurusan', resultData.jurusan);
-                await this.saveMasterData('kategori', resultData.kategori);
-                await this.saveMasterData('alat', resultData.alat);
-                await this.saveMasterData('peminjaman', resultData.peminjaman);
-                if (resultData.bahan) await this.saveMasterData('bahan', resultData.bahan);
-                if (resultData.bahan_keluar) await this.saveMasterData('bahan_keluar', resultData.bahan_keluar);
+                
+                // Simpan data final yang terkonfirmasi ke database lokal
+                for (const store of Object.keys(resultData)) {
+                    await this.saveMasterData(store, resultData[store]);
+                }
+                
                 console.log("Sync sukses!");
+                this._isSyncing = false;
                 return true;
             }
 
+            this._isSyncing = false;
             return false;
         } catch (e) {
             console.error('Silently failed POST sync:', e);
+            this._isSyncing = false;
             return false;
         }
     }

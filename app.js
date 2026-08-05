@@ -530,6 +530,12 @@ const app = {
     getDriveImageUrl: function(url) {
         if (!url) return '';
         if (url.startsWith('data:image')) return url; // Offline base64 caching
+        
+        // Jika input dari spreadsheet HANYA berupa ID mentah (tanpa link https://)
+        if (/^[a-zA-Z0-9_-]{25,40}$/.test(url)) {
+            return `https://drive.google.com/thumbnail?id=${url}&sz=w400`;
+        }
+
         const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (match && match[1]) {
             return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`; // Extract ID and use thumbnail API

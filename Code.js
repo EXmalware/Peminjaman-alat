@@ -89,7 +89,15 @@ function processSyncTask(ss, task) {
   var action = task.action;
 
   if (action.startsWith('insert')) {
-    sheet.appendRow(headers.map(function(h) { return payload[h] || ''; }));
+    var rowIdx = findRowIndex(sheet, headers, payload, sheetName);
+    if (rowIdx > -1) {
+      // Mencegah duplikasi: jika ID sudah ada (karena retry sync), lakukan update (Upsert)
+      var data = sheet.getDataRange().getValues();
+      var updateRow = headers.map(function(h) { return payload[h] !== undefined ? payload[h] : data[rowIdx][headers.indexOf(h)]; });
+      sheet.getRange(rowIdx + 1, 1, 1, headers.length).setValues([updateRow]);
+    } else {
+      sheet.appendRow(headers.map(function(h) { return payload[h] || ''; }));
+    }
   } 
   else if (action.startsWith('update') || action.startsWith('delete')) {
     var rowIdx = findRowIndex(sheet, headers, payload, sheetName);
