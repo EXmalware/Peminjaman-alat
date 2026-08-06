@@ -1686,8 +1686,9 @@ const app = {
             } catch (e) { }
         }
 
-        await db.stores.peminjaman.removeItem(id);
-        await db.queueSyncTask('delete_peminjaman', 'peminjaman', { id: id, newId: id });
+        const realId = db.getItemId(p) || id;
+        await db.stores.peminjaman.removeItem(realId);
+        await db.queueSyncTask('delete_peminjaman', 'peminjaman', { id: realId, newId: realId });
 
         this.hideLoading();
         this.showToast('Riwayat berhasil dihapus', 'success');
@@ -1872,7 +1873,8 @@ const app = {
         p.status = 'KEMBALI';
         p.tanggal_kembali_aktual = new Date().toISOString().split('T')[0];
 
-        await db.stores.peminjaman.setItem(peminjamanId, p);
+        const realId = db.getItemId(p) || peminjamanId;
+        await db.stores.peminjaman.setItem(realId, p);
         await db.queueSyncTask('update_peminjaman', 'peminjaman', p);
 
         // Restore alat stock
