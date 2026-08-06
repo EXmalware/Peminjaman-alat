@@ -74,7 +74,7 @@ function getPayloadValue(payload, header) {
     var c = String(s).trim().toLowerCase().replace(/[\s_-]/g, '');
     if (c === 'jurusan') return 'jurusanid';
     if (c === 'namabarang' || c === 'namaalat') return 'nama';
-    if (c === 'idbarang' || c === 'id') return 'id';
+    if (c === 'idbarang' || c === 'id' || c === 'newid') return 'id';
     return c;
   };
 

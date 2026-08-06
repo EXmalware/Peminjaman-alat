@@ -261,6 +261,11 @@ const app = {
         this.initMobileNavigation();
 
         // Pemicu sinkronisasi asinkronous transparan di balakang layar
+        db.onSyncSuccess = () => {
+            this.loadActivePeminjaman();
+            this.loadRiwayat();
+            this.loadDashboard();
+        };
         this.backgroundSync();
 
         // Initial badge and section state

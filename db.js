@@ -340,6 +340,11 @@ const db = {
                 }
                 
                 console.log("Sync sukses!");
+                if (typeof this.onSyncSuccess === 'function') {
+                    try {
+                        this.onSyncSuccess();
+                    } catch(e) { console.error('onSyncSuccess callback error', e); }
+                }
                 this._isSyncing = false;
                 return true;
             }
