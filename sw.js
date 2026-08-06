@@ -1,9 +1,9 @@
-const CACHE_NAME = 'pinjamalat-v6';
+const CACHE_NAME = 'pinjamalat-v7';
 const ASSETS = [
     './',
     './index.html',
     './style-v3.css',
-    './app-v3.js?v=6',
+    './app-v3.js?v=7',
     './db.js',
     './manifest.json',
     'https://unpkg.com/@phosphor-icons/web',
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (e) => {
     if (!e.request.url.startsWith('http://') && !e.request.url.startsWith('https://')) return;
     
     // Ignore external APIs that we handle via db sync logic
-    if (e.request.url.includes('script.google.com')) return;
+    if (e.request.url.includes('script.google.com') || e.request.url.includes('docs.google.com')) return;
 
     e.respondWith(
         caches.match(e.request).then((response) => {

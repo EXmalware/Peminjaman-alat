@@ -1353,9 +1353,11 @@ const app = {
         }
         const activeCart = this.state.isEditingPeminjaman ? this.state.editCart : this.state.cart;
         
-        const existing = activeCart.find(item => (item.id || item.newId) === (a.id || a.newId));
+        const targetId = db.getItemId(a);
+        const existing = activeCart.find(item => db.getItemId(item) === targetId);
         if (existing) {
-            if (existing.qty < a.jumlah_tersedia) {
+            const maxStok = Number(a.jumlah_tersedia || a.Jumlah_Tersedia || 0);
+            if (existing.qty < maxStok) {
                 existing.qty++;
             } else {
                 return this.showToast('Jumlah melebihi stok tersedia!', 'warning');
@@ -1794,11 +1796,11 @@ const app = {
         const deltaMap = {};
         const oldItems = this.state.originalEditCart || [];
         for (const old of oldItems) {
-            const alatId = String(old.id || old.newId);
+            const alatId = String(db.getItemId(old) || '');
             deltaMap[alatId] = (deltaMap[alatId] || 0) - Number(old.qty);
         }
         for (const item of newItems) {
-            const alatId = String(item.id || item.newId);
+            const alatId = String(db.getItemId(item) || '');
             deltaMap[alatId] = (deltaMap[alatId] || 0) + Number(item.qty);
         }
 

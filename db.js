@@ -43,7 +43,11 @@ const db = {
             item.nomor_peminjaman,
             item.Nomor_Peminjaman,
             item.ID,
-            item.Id
+            item.Id,
+            item.kode_seri,
+            item.Kode_Seri,
+            item.nama,
+            item.Nama
         ];
         for (let i = 0; i < candidates.length; i++) {
             const val = candidates[i];
@@ -64,6 +68,7 @@ const db = {
                 id = (id || 'GEN') + '_' + Math.random().toString(36).substr(2, 9);
             }
             seenIds.add(id);
+            item.id = id; // Ensure the item object holds its unique identifier internally
             return this.stores[storeName].setItem(id, item);
         });
         return Promise.all(promises);
@@ -162,7 +167,7 @@ const db = {
             ];
 
             const fetchSheet = async (sheetObj) => {
-                const url = `https://docs.google.com/spreadsheets/d/${this.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetObj.name}`;
+                const url = `https://docs.google.com/spreadsheets/d/${this.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetObj.name}&_=${Date.now()}`;
                 const resp = await fetch(url);
                 const text = await resp.text();
                 // Ekstrak JSON dari respons JSONP ala Google
