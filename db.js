@@ -31,10 +31,41 @@ const db = {
         }
     },
 
+    getItemId: function (item) {
+        if (!item) return null;
+        const candidates = [
+            item.id,
+            item.newId,
+            item.newid,
+            item.NewId,
+            item.ID_Barang,
+            item.id_barang,
+            item.nomor_peminjaman,
+            item.Nomor_Peminjaman,
+            item.ID,
+            item.Id
+        ];
+        for (let i = 0; i < candidates.length; i++) {
+            const val = candidates[i];
+            if (val !== undefined && val !== null && String(val).trim() !== '') {
+                return String(val).trim();
+            }
+        }
+        return null;
+    },
+
     // Save fetched data entirely
     saveMasterData: async function (storeName, dataArray) {
         await this.stores[storeName].clear();
-        const promises = dataArray.map(item => this.stores[storeName].setItem(String(item.id || item.newId || item.ID_Barang), item));
+        const seenIds = new Set();
+        const promises = dataArray.map(item => {
+            let id = this.getItemId(item);
+            if (!id || seenIds.has(id)) {
+                id = (id || 'GEN') + '_' + Math.random().toString(36).substr(2, 9);
+            }
+            seenIds.add(id);
+            return this.stores[storeName].setItem(id, item);
+        });
         return Promise.all(promises);
     },
 
@@ -53,6 +84,65 @@ const db = {
         const task = { id: taskId, action, storeName, payload, timestamp: Date.now() };
         await this.stores.syncQueue.setItem(taskId, task);
         return task;
+    },
+
+    normalizeKeys: function (obj) {
+        if (!obj) return obj;
+        const normalizedObj = {};
+        for (const key in obj) {
+            const normKey = String(key).toLowerCase().replace(/[\s_-]/g, '');
+            normalizedObj[normKey] = obj[key];
+        }
+        
+        const result = { ...obj };
+        
+        const standardKeysMap = {
+            id: ['id', 'newid', 'idbarang', 'kodebarang', 'id_barang', 'kode_barang'],
+            newid: ['newid', 'id', 'new_id'],
+            nama: ['nama', 'namabarang', 'namaalat', 'nama_barang', 'nama_alat'],
+            kategori_id: ['kategoriid', 'idkategori', 'kategori_id', 'id_kategori'],
+            jurusan_id: ['jurusanid', 'idjurusan', 'kodejurusan', 'jurusan_id', 'id_jurusan', 'kode_jurusan', 'jurusan'],
+            kode_seri: ['kodeseri', 'seri', 'kodeserial', 'kode_seri', 'kode_serial'],
+            jumlah_total: ['jumlahtotal', 'totalstok', 'stoktotal', 'jumlah_total', 'total_stok'],
+            jumlah_tersedia: ['jumlahtersedia', 'stoktersedia', 'stok', 'jumlah_tersedia', 'stok_tersedia'],
+            kondisi: ['kondisi'],
+            keterangan: ['keterangan'],
+            foto: ['foto', 'gambar', 'urlfoto', 'url_foto'],
+            username: ['username', 'user'],
+            password: ['password', 'pwd'],
+            full_name: ['fullname', 'namalengkap', 'full_name', 'nama_lengkap'],
+            role: ['role', 'peran', 'akses'],
+            nomor_peminjaman: ['nomorpeminjaman', 'notrx', 'trx', 'nomor_peminjaman', 'no_trx'],
+            nama_peminjam: ['namapeminjam', 'peminjam', 'nama_peminjam'],
+            nomor_hp: ['nomorhp', 'hp', 'wa', 'nomor_hp', 'no_hp', 'whatsapp'],
+            kelas_unit: ['kelasunit', 'kelas', 'unit', 'kelas_unit'],
+            tanggal_pinjam: ['tanggalpinjam', 'tglpinjam', 'tanggal_pinjam', 'tgl_pinjam'],
+            tanggal_kembali_estimasi: ['tanggalkembaliestimasi', 'estimasi', 'estimasi_kembali', 'tanggal_kembali_estimasi'],
+            tanggal_kembali_aktual: ['tanggalkembaliaktual', 'kembaliaktual', 'tanggal_kembali_aktual', 'tgl_kembali_aktual'],
+            status: ['status'],
+            items: ['items', 'detail', 'daftaralat', 'daftar_alat'],
+            petugas: ['petugas', 'operator'],
+            id_barang: ['idbarang', 'id', 'kodebarang', 'id_barang', 'kode_barang'],
+            nama_barang: ['namabarang', 'nama', 'nama_barang'],
+            stok: ['stok', 'jumlah', 'sisa', 'stok_tersedia'],
+            stok_minimal: ['stokminimal', 'minimal', 'stok_minimal'],
+            satuan: ['satuan'],
+            total_keluar: ['totalkeluar', 'jumlahkeluar', 'total_keluar', 'jumlah_keluar'],
+            diinput_oleh: ['diinputoleh', 'petugas', 'diinput_oleh']
+        };
+
+        for (const stdKey in standardKeysMap) {
+            const candidates = standardKeysMap[stdKey];
+            for (let i = 0; i < candidates.length; i++) {
+                const cand = candidates[i];
+                const normCand = cand.replace(/[\s_-]/g, '').toLowerCase();
+                if (normalizedObj[normCand] !== undefined) {
+                    result[stdKey] = normalizedObj[normCand];
+                    break;
+                }
+            }
+        }
+        return result;
     },
 
     // Fetch data directly from Google Sheets API for blazing fast reads
@@ -119,7 +209,7 @@ const db = {
                                     if (val !== '') hasData = true;
                                 }
                             }
-                            if (hasData) data.push(obj);
+                            if (hasData) data.push(this.normalizeKeys(obj));
                         }
                     }
                     return { store: sheetObj.store, data: data };
@@ -159,9 +249,12 @@ const db = {
                     .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
 
                 const match = serverPeminjaman.find((item) => {
-                    const itemId = String(item.newId || item.id || item.ID_Barang || '');
-                    const itemNomor = String(item.nomor_peminjaman || '');
-                    return idCandidates.some((candidate) => String(candidate) === itemId || String(candidate) === itemNomor);
+                    const itemId = this.getItemId(item) || '';
+                    const itemNomor = String(item.nomor_peminjaman || item.Nomor_Peminjaman || '');
+                    return idCandidates.some((candidate) => {
+                        const c = String(candidate).trim().toLowerCase();
+                        return c === itemId.toLowerCase() || c === itemNomor.toLowerCase();
+                    });
                 });
 
                 if (action === 'delete_peminjaman') {
@@ -186,8 +279,8 @@ const db = {
                     .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
 
                 const match = serverAlat.find((item) => {
-                    const itemId = String(item.newId || item.id || item.ID_Barang || '');
-                    return idCandidates.some((candidate) => String(candidate) === itemId);
+                    const itemId = this.getItemId(item) || '';
+                    return idCandidates.some((candidate) => String(candidate).toLowerCase() === itemId.toLowerCase());
                 });
 
                 if (!match) return false;

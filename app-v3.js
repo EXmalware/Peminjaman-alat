@@ -968,10 +968,11 @@ const app = {
     loadAlat: async function () {
         const query = document.getElementById('alat-search')?.value.toLowerCase() || '';
         const rawAlat = await db.getAll('alat');
-        let alatDataFiltered = this.getFilteredData(rawAlat).filter(a =>
-            a.nama.toLowerCase().includes(query) ||
-            a.kode_seri.toLowerCase().includes(query)
-        );
+        let alatDataFiltered = this.getFilteredData(rawAlat).filter(a => {
+            const name = String(a.nama || '').toLowerCase();
+            const code = String(a.kode_seri || '').toLowerCase();
+            return name.includes(query) || code.includes(query);
+        });
 
         // --- Proses Sorting Alat ---
         const sc = this.state.alatSort.column;
@@ -1296,16 +1297,16 @@ const app = {
                 </td>
                 <td>
                     <span class="badge badge-outline clickable-badge" 
-                          onclick="app.showPeminjamanDetail('${p.id || p.newId}')"
-                          style="cursor:pointer; border-color:var(--primary); color:var(--primary)">
+                           onclick="app.showPeminjamanDetail('${db.getItemId(p)}')"
+                           style="cursor:pointer; border-color:var(--primary); color:var(--primary)">
                         ${items.length} Item <i class="ph ph-eye"></i>
                     </span>
                 </td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-sm btn-outline" onclick='app.cetakReceipt(${JSON.stringify(p)})' title="Cetak Struk"><i class="ph ph-printer"></i></button>
-                        <button class="btn btn-sm btn-outline" onclick="app.editPeminjaman('${p.id || p.newId}')" title="Edit Transaksi"><i class="ph ph-pencil"></i></button>
-                        <button class="btn btn-sm btn-primary" onclick="app.kembalikanAlat('${p.id || p.newId}')" title="Kembalikan"><i class="ph ph-arrow-u-up-left"></i></button>
+                        <button class="btn btn-sm btn-outline" onclick="app.editPeminjaman('${db.getItemId(p)}')" title="Edit Transaksi"><i class="ph ph-pencil"></i></button>
+                        <button class="btn btn-sm btn-primary" onclick="app.kembalikanAlat('${db.getItemId(p)}')" title="Kembalikan"><i class="ph ph-arrow-u-up-left"></i></button>
                     </div>
                 </td>
             `;
@@ -1594,6 +1595,8 @@ const app = {
         data.forEach(p => {
             let statusBadge = p.status === 'DIPINJAM' ? '<span class="badge" style="background:var(--warning); color:#000;">DIPINJAM</span>' : '<span class="badge" style="background:var(--success); color:#fff;">KEMBALI</span>';
             const tr = document.createElement('tr');
+            tr.dataset.status = p.status || '';
+            tr.dataset.tanggalPinjam = (p.tanggal_pinjam || p.created_at || '').split('T')[0];
 
             // Format Dates
             const pinjamDate = this.formatDate(p.created_at);
@@ -1626,7 +1629,7 @@ const app = {
                 </td>
                 <td>
                     <span class="badge clickable-badge" 
-                          onclick="app.showPeminjamanDetail('${p.id || p.newId}')"
+                          onclick="app.showPeminjamanDetail('${db.getItemId(p)}')"
                           style="cursor:pointer; background:var(--primary-light); color:var(--primary); padding: 0.4rem 0.6rem;">
                         ${items.length} Alat <i class="ph ph-eye"></i>
                     </span><br>
@@ -1636,7 +1639,7 @@ const app = {
                     <div style="display:flex; align-items:center; gap:0.5rem; justify-content:flex-start;">
                         ${statusBadge}
                         ${editButtonHtml}
-                        <button class="btn-icon" style="font-size: 1.1rem; padding: 0.2rem;" onclick="app.hapusPeminjaman('${p.id || p.newId}')" title="Hapus Riwayat">
+                        <button class="btn-icon" style="font-size: 1.1rem; padding: 0.2rem;" onclick="app.hapusPeminjaman('${db.getItemId(p)}')" title="Hapus Riwayat">
                             <i class="ph ph-trash" style="color:var(--danger)"></i>
                         </button>
                     </div>
@@ -1651,7 +1654,11 @@ const app = {
         if (!diizinkan) return;
 
         this.showLoading('Menghapus...');
-        const p = await db.stores.peminjaman.getItem(id);
+        let p = await db.stores.peminjaman.getItem(id);
+        if (!p) {
+            const allP = await db.getAll('peminjaman');
+            p = allP.find(item => db.getItemId(item) === id || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(id).trim().toLowerCase()));
+        }
         if (!p) {
             this.hideLoading();
             return this.showToast('Data tidak ditemukan', 'error');
@@ -1686,7 +1693,11 @@ const app = {
     },
 
     editPeminjaman: async function (id) {
-        const p = await db.stores.peminjaman.getItem(id);
+        let p = await db.stores.peminjaman.getItem(id);
+        if (!p) {
+            const allP = await db.getAll('peminjaman');
+            p = allP.find(item => db.getItemId(item) === id || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(id).trim().toLowerCase()));
+        }
         if (!p) return this.showToast('Data peminjaman tidak ditemukan', 'error');
 
         document.getElementById('edit-pem-id').value = id;
@@ -1843,7 +1854,11 @@ const app = {
         if (!tanya) return;
 
         this.showLoading('Memproses...');
-        const p = await db.stores.peminjaman.getItem(peminjamanId);
+        let p = await db.stores.peminjaman.getItem(peminjamanId);
+        if (!p) {
+            const allP = await db.getAll('peminjaman');
+            p = allP.find(item => db.getItemId(item) === peminjamanId || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(peminjamanId).trim().toLowerCase()));
+        }
         if (!p) {
             this.hideLoading();
             return this.showToast('Data tidak ditemukan', 'error');
@@ -2133,7 +2148,12 @@ const app = {
     },
 
     showPeminjamanDetail: async function (id) {
-        const p = await db.stores.peminjaman.getItem(id);
+        let p = await db.stores.peminjaman.getItem(id);
+        if (!p) {
+            // Fallback: search across all locally stored transactions in memory
+            const allP = await db.getAll('peminjaman');
+            p = allP.find(item => db.getItemId(item) === id || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(id).trim().toLowerCase()));
+        }
         if (!p) return this.showToast('Data tidak ditemukan', 'error');
 
         const detailInfoGrid = document.getElementById('detail-info-grid');
@@ -2786,9 +2806,11 @@ const app = {
         const searchInput = document.getElementById('search-riwayat');
         const monthFilter = document.getElementById('filter-bulan-riwayat');
         const yearFilter = document.getElementById('filter-tahun-riwayat');
+        const statusFilter = document.getElementById('filter-status-riwayat');
+        const tanggalFilter = document.getElementById('filter-tanggal-riwayat');
         const timelineBtn = document.getElementById('btn-riwayat-timeline');
         
-        [searchInput, monthFilter, yearFilter].forEach(el => {
+        [searchInput, monthFilter, yearFilter, statusFilter, tanggalFilter].forEach(el => {
             if (el) el.addEventListener('change', () => this.applyRiwayatFilters());
         });
         
@@ -2797,6 +2819,10 @@ const app = {
                 clearTimeout(this.searchTimeout);
                 this.searchTimeout = setTimeout(() => this.applyRiwayatFilters(), 300);
             });
+        }
+
+        if (tanggalFilter) {
+            tanggalFilter.addEventListener('input', () => this.applyRiwayatFilters());
         }
         
         if (timelineBtn) {
@@ -2808,6 +2834,8 @@ const app = {
         const search = document.getElementById('search-riwayat')?.value.toLowerCase() || '';
         const bulan = document.getElementById('filter-bulan-riwayat')?.value || '';
         const tahun = document.getElementById('filter-tahun-riwayat')?.value || '';
+        const status = document.getElementById('filter-status-riwayat')?.value || '';
+        const tanggalPinjam = document.getElementById('filter-tanggal-riwayat')?.value || '';
         
         const rows = document.querySelectorAll('#table-riwayat tbody tr');
         let visibleCount = 0;
@@ -2815,18 +2843,24 @@ const app = {
         rows.forEach(row => {
             const text = row.textContent.toLowerCase();
             const tgl = row.querySelector('td:nth-child(3)')?.textContent || '';
+            const rowStatus = row.dataset.status || '';
+            const rowTanggal = row.dataset.tanggalPinjam || '';
+            
             const matchSearch = !search || text.includes(search);
             const matchBulan = !bulan || tgl.includes('/' + bulan);
             const matchTahun = !tahun || tgl.includes(tahun);
-            const visible = matchSearch && matchBulan && matchTahun;
+            const matchStatus = !status || String(rowStatus).trim().toUpperCase() === String(status).trim().toUpperCase();
+            const matchTanggal = !tanggalPinjam || rowTanggal === tanggalPinjam;
+            
+            const visible = matchSearch && matchBulan && matchTahun && matchStatus && matchTanggal;
             row.style.display = visible ? '' : 'none';
             if (visible) visibleCount++;
         });
         
-        this.updateFilterChips(search, bulan, tahun);
+        this.updateFilterChips(search, bulan, tahun, status, tanggalPinjam);
     },
 
-    updateFilterChips: function(search, bulan, tahun) {
+    updateFilterChips: function(search, bulan, tahun, status, tanggalPinjam) {
         const container = document.getElementById('filter-chips-riwayat');
         if (!container) return;
         container.innerHTML = '';
@@ -2837,17 +2871,29 @@ const app = {
             chip.innerHTML = `<i class="ph ph-magnifying-glass"></i> "${search}"`;
             container.appendChild(chip);
         }
+        if (status) {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            chip.innerHTML = `<i class="ph ph-tag"></i> Status: ${status === 'DIPINJAM' ? 'Dipinjam' : 'Kembali'}`;
+            container.appendChild(chip);
+        }
+        if (tanggalPinjam) {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            chip.innerHTML = `<i class="ph ph-calendar"></i> Tgl: ${this.formatDate(tanggalPinjam)}`;
+            container.appendChild(chip);
+        }
         if (bulan) {
             const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
             const chip = document.createElement('div');
             chip.className = 'filter-chip';
-            chip.innerHTML = `<i class="ph ph-calendar"></i> ${bulanNames[parseInt(bulan)]}`;
+            chip.innerHTML = `<i class="ph ph-calendar"></i> Bulan: ${bulanNames[parseInt(bulan)]}`;
             container.appendChild(chip);
         }
         if (tahun) {
             const chip = document.createElement('div');
             chip.className = 'filter-chip';
-            chip.innerHTML = `<i class="ph ph-calendar"></i> ${tahun}`;
+            chip.innerHTML = `<i class="ph ph-calendar"></i> Tahun: ${tahun}`;
             container.appendChild(chip);
         }
     },
@@ -2873,8 +2919,15 @@ const app = {
         if (!container || !this.state.peminjaman) return;
         
         let filtered = this.state.peminjaman.filter(p => {
-            const row = document.querySelector(`#table-riwayat tbody tr:has(td:contains("${p.nomor_peminjaman}"))`);
-            return !row || row.style.display !== 'none';
+            const rows = document.querySelectorAll('#table-riwayat tbody tr');
+            for (let i = 0; i < rows.length; i++) {
+                const tr = rows[i];
+                const trxCell = tr.querySelector('td:first-child');
+                if (trxCell && trxCell.textContent.trim() === String(p.nomor_peminjaman).trim()) {
+                    return tr.style.display !== 'none';
+                }
+            }
+            return true;
         });
         
         filtered.sort((a, b) => new Date(b.tanggal_pinjam || 0) - new Date(a.tanggal_pinjam || 0));

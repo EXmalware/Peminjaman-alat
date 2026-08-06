@@ -358,6 +358,12 @@
                                         <input type="text" id="search-riwayat" placeholder="Cari nama, nomor TRX, atau kelas..." style="flex: 1; border: none; background: transparent; color: white; outline: none; font-size: 0.95rem;">
                                     </div>
                                     <button id="btn-riwayat-timeline" class="btn btn-outline btn-sm" title="Tampil Timeline"><i class="ph ph-list-bullets"></i></button>
+                                    <select id="filter-status-riwayat" class="input-sm">
+                                        <option value="">Semua Status</option>
+                                        <option value="DIPINJAM">Dipinjam</option>
+                                        <option value="KEMBALI">Kembali</option>
+                                    </select>
+                                    <input type="date" id="filter-tanggal-riwayat" class="input-sm" style="color-scheme: dark; color: white; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.4rem 0.75rem; height: 36px; box-sizing: border-box;" title="Tanggal Pinjam">
                                     <select id="filter-bulan-riwayat" class="input-sm">
                                         <option value="">Semua Bulan</option>
                                         <option value="01">Januari</option>
