@@ -1,14 +1,18 @@
-const CACHE_NAME = 'pinjamalat-v7';
+const CACHE_NAME = 'pinjamalat-v25';
 const ASSETS = [
     './',
     './index.html',
     './style-v3.css',
-    './app-v3.js?v=7',
-    './db.js',
+    './app-v3.js?v=25',
+    './db.js?v=25',
     './manifest.json',
     'https://unpkg.com/@phosphor-icons/web',
     'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
-    'https://unpkg.com/localforage@1.10.0/dist/localforage.min.js'
+    'https://unpkg.com/localforage@1.10.0/dist/localforage.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
 ];
 
 self.addEventListener('install', (e) => {

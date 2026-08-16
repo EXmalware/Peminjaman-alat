@@ -159,87 +159,172 @@
                     
                     <!-- Dashboard Section -->
                     <section id="dashboard-section" class="content-section section-active">
+                        <!-- Dashboard Header Toolbar with Period Filter -->
+                        <div class="dashboard-header-bar flex-header mb-4">
+                            <div>
+                                <h2 class="dashboard-title"><i class="ph ph-chart-polar" style="color:var(--accent); margin-right: 0.4rem;"></i> Ringkasan & Analitik</h2>
+                                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:2px;">Pantau pergerakan alat, statistik peminjaman, dan status logistik secara real-time</p>
+                            </div>
+                            <div class="period-filter-group" id="dashboard-period-filter">
+                                <button class="period-pill active" onclick="app.setDashboardPeriod('semua')" data-period="semua">Semua</button>
+                                <button class="period-pill" onclick="app.setDashboardPeriod('bulan')" data-period="bulan">Bulan Ini</button>
+                                <button class="period-pill" onclick="app.setDashboardPeriod('minggu')" data-period="minggu">Minggu Ini</button>
+                                <button class="period-pill" onclick="app.setDashboardPeriod('hari')" data-period="hari">Hari Ini</button>
+                            </div>
+                        </div>
+
+                        <!-- 5 Modern Stat Cards -->
                         <div class="dashboard-grid">
                             <div class="stat-card glass-card">
                                 <div class="stat-icon bg-blue"><i class="ph ph-toolbox"></i></div>
                                 <div class="stat-info">
-                                    <h3>Total Alat</h3>
+                                    <div class="stat-header-row">
+                                        <h3>Total Alat</h3>
+                                        <span class="stat-subbadge bg-blue" id="stat-ketersediaan-pct">0% Siap</span>
+                                    </div>
                                     <h2 id="stat-total-alat">0</h2>
                                 </div>
                             </div>
                             <div class="stat-card glass-card">
                                 <div class="stat-icon bg-green"><i class="ph ph-check-circle"></i></div>
                                 <div class="stat-info">
-                                    <h3>Alat Tersedia</h3>
+                                    <div class="stat-header-row">
+                                        <h3>Alat Tersedia</h3>
+                                        <span class="stat-subbadge bg-green">Ready</span>
+                                    </div>
                                     <h2 id="stat-tersedia">0</h2>
                                 </div>
                             </div>
                             <div class="stat-card glass-card">
                                 <div class="stat-icon bg-orange"><i class="ph ph-hand-coins"></i></div>
                                 <div class="stat-info">
-                                    <h3>Sedang Dipinjam</h3>
+                                    <div class="stat-header-row">
+                                        <h3>Sedang Dipinjam</h3>
+                                        <span class="stat-subbadge bg-orange" id="stat-active-badge">Aktif</span>
+                                    </div>
                                     <h2 id="stat-dipinjam">0</h2>
                                 </div>
                             </div>
                             <div class="stat-card glass-card">
-                                <div class="stat-icon bg-indigo"><i class="ph ph-package"></i></div>
+                                <div class="stat-icon bg-danger"><i class="ph ph-warning-circle"></i></div>
                                 <div class="stat-info">
-                                    <h3>Bahan Tersedia</h3>
-                                    <h2 id="stat-bahan-tersedia">0</h2>
-                                </div>
-                            </div>
-                            <div class="stat-card glass-card">
-                                <div class="stat-icon bg-danger"><i class="ph ph-warning"></i></div>
-                                <div class="stat-info">
-                                    <h3>Terlambat</h3>
+                                    <div class="stat-header-row">
+                                        <h3>Terlambat</h3>
+                                        <span class="stat-subbadge bg-danger" id="stat-overdue-alert">Perhatian</span>
+                                    </div>
                                     <h2 id="stat-terlambat">0</h2>
                                 </div>
                             </div>
-                        </div>
-                        <div class="dashboard-active glass-card mt-4">
-                            <div class="card-header flex-header">
-                                <div style="display:flex; align-items:center; gap:0.5rem;">
-                                    <div class="stat-icon bg-orange" style="width:30px; height:30px; font-size:0.9rem;"><i class="ph ph-warning-circle"></i></div>
-                                    <h3>Bahan Menipis / Habis</h3>
+                            <div class="stat-card glass-card">
+                                <div class="stat-icon bg-indigo"><i class="ph ph-arrows-left-right"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-header-row">
+                                        <h3>Total Transaksi</h3>
+                                        <span class="stat-subbadge bg-indigo" id="stat-periode-label">Semua</span>
+                                    </div>
+                                    <h2 id="stat-total-transaksi">0</h2>
                                 </div>
-                                <button class="btn btn-sm btn-outline" onclick="app.navigate('bahan')">Kelola Bahan</button>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table-modern neat-table" id="dashboard-bahan-kritis-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Kode</th>
-                                            <th>Nama Bahan</th>
-                                            <th>Sisa Stok</th>
-                                            <th style="text-align: right;">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Data populated by JS -->
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
 
-                        <div class="dashboard-recent glass-card mt-4">
-                            <div class="card-header">
-                                <h3>10 Transaksi Terbaru</h3>
-                                <button class="btn btn-sm btn-outline" onclick="app.navigate('riwayat')">Lihat Riwayat</button>
+                        <!-- Visual Analytics Row: Chart & Top Tools Leaderboard -->
+                        <div class="dashboard-analytics-grid mt-4">
+                            <!-- Left: Interactive Trend Chart -->
+                            <div class="glass-card analytics-chart-card">
+                                <div class="card-header flex-header">
+                                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                                        <div class="stat-icon bg-blue" style="width:32px; height:32px; font-size:0.9rem;"><i class="ph ph-chart-line-up"></i></div>
+                                        <div>
+                                            <h3 style="font-size:1rem; margin:0;">Tren Aktivitas Peminjaman</h3>
+                                            <small style="color:var(--text-muted); font-size:0.75rem;" id="chart-subtitle">Grafik transaksi peminjaman & pengembalian</small>
+                                        </div>
+                                    </div>
+                                    <div class="chart-type-toggle">
+                                        <button class="btn-icon-toggle active" id="btn-chart-line" onclick="app.toggleChartType('line')" title="Grafik Garis Area"><i class="ph ph-chart-line"></i></button>
+                                        <button class="btn-icon-toggle" id="btn-chart-bar" onclick="app.toggleChartType('bar')" title="Grafik Batang"><i class="ph ph-chart-bar"></i></button>
+                                    </div>
+                                </div>
+                                <div class="chart-container-wrapper">
+                                    <canvas id="borrowingTrendChart"></canvas>
+                                </div>
                             </div>
-                            <div class="table-responsive">
-                                <table class="table-modern" id="table-recent-peminjaman">
-                                    <thead>
-                                        <tr>
-                                            <th>TRX</th>
-                                            <th>Peminjam</th>
-                                            <th>Tanggal</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Rendered by JS -->
-                                    </tbody>
-                                </table>
+
+                            <!-- Right: Top 5 Most Borrowed Tools Leaderboard -->
+                            <div class="glass-card top-tools-card">
+                                <div class="card-header flex-header">
+                                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                                        <div class="stat-icon bg-orange" style="width:32px; height:32px; font-size:0.9rem;"><i class="ph ph-trophy"></i></div>
+                                        <div>
+                                            <h3 style="font-size:1rem; margin:0;">Top 5 Alat Terpopuler</h3>
+                                            <small style="color:var(--text-muted); font-size:0.75rem;">Alat yang paling sering dipinjam</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline" onclick="app.navigate('alat')">Lihat Semua</button>
+                                </div>
+                                <div class="top-tools-list" id="top-tools-leaderboard">
+                                    <!-- Dynamic populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Distribution & Stock Quick Insights Row -->
+                        <div class="dashboard-tables-grid mt-4">
+                            <!-- Left: Bahan Menipis / Habis -->
+                            <div class="glass-card dashboard-active">
+                                <div class="card-header flex-header">
+                                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                                        <div class="stat-icon bg-orange" style="width:30px; height:30px; font-size:0.9rem;"><i class="ph ph-package"></i></div>
+                                        <div>
+                                            <h3 style="font-size:0.95rem; margin:0;">Bahan Menipis / Habis</h3>
+                                            <small style="color:var(--text-muted); font-size:0.75rem;">Peringatan stok bahan di bawah batas minimum</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline" onclick="app.navigate('bahan')">Kelola Bahan</button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table-modern neat-table" id="dashboard-bahan-kritis-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Kode</th>
+                                                <th>Nama Bahan</th>
+                                                <th>Sisa Stok</th>
+                                                <th style="text-align: right;">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Data populated by JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Right: 10 Transaksi Terbaru -->
+                            <div class="glass-card dashboard-recent">
+                                <div class="card-header flex-header">
+                                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                                        <div class="stat-icon bg-indigo" style="width:30px; height:30px; font-size:0.9rem;"><i class="ph ph-clock-counter-clockwise"></i></div>
+                                        <div>
+                                            <h3 style="font-size:0.95rem; margin:0;">Transaksi Terbaru</h3>
+                                            <small style="color:var(--text-muted); font-size:0.75rem;">10 aktivitas peminjaman terakhir</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline" onclick="app.navigate('riwayat')">Lihat Riwayat</button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table-modern" id="table-recent-peminjaman">
+                                        <thead>
+                                            <tr>
+                                                <th>TRX</th>
+                                                <th>Peminjam</th>
+                                                <th>Tanggal</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Rendered by JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -275,11 +360,20 @@
                                     </div>
                                     
                                     <div class="lending-tools-section mt-4">
-                                        <div class="section-header-flex">
+                                        <div class="section-header-flex" style="flex-wrap:wrap; gap:0.5rem; align-items:center;">
                                             <h4><i class="ph ph-toolbox"></i> Daftar Alat</h4>
-                                            <button type="button" class="btn btn-sm btn-outline" onclick="app.openPilihAlatModal()">
-                                                <i class="ph ph-plus-circle"></i> Tambah Alat
-                                            </button>
+                                            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                                                <div class="scanner-gun-wrapper" title="Scan langsung menggunakan barcode scanner gun USB/Bluetooth">
+                                                    <i class="ph ph-barcode" style="color:var(--accent); font-size:1.1rem;"></i>
+                                                    <input type="text" id="barcode-gun-input" placeholder="Scan Barcode Gun..." autocomplete="off" onkeydown="app.handleBarcodeGunKey(event)">
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="app.openScannerModal(false)">
+                                                    <i class="ph ph-camera"></i> Scan Kamera
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline" onclick="app.openPilihAlatModal()">
+                                                    <i class="ph ph-plus-circle"></i> Pilih Manual
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="table-responsive-minimal">
                                             <table class="table-modern" id="table-cart">
@@ -346,23 +440,32 @@
                             <div class="card-header flex-header" style="flex-wrap: wrap; gap: 1rem;">
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
                                     <div class="stat-icon bg-green" style="width:36px; height:36px; font-size:1.1rem;"><i class="ph ph-clock-counter-clockwise"></i></div>
-                                    <h3>Riwayat Peminjaman</h3>
+                                    <div>
+                                        <h3 style="margin:0;">Riwayat Peminjaman</h3>
+                                        <small style="color:var(--text-muted); font-size:0.75rem;">Daftar transaksi dan log sirkulasi alat</small>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:0.5rem; align-items:center;">
+                                    <button id="btn-riwayat-timeline" class="btn btn-outline btn-sm" title="Toggle Tampilan Timeline / Tabel" onclick="app.toggleRiwayatView()"><i class="ph ph-list-bullets"></i> Timeline</button>
+                                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayat()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
                                 </div>
                             </div>
                             
+                            <!-- Quick Filter Tabs -->
+                            <div class="section-quick-tabs" id="riwayat-tabs">
+                                <button class="quick-tab-pill active" onclick="app.setRiwayatFilterStatus('')">Semua <span id="riwayat-badge-all" class="quick-tab-badge">0</span></button>
+                                <button class="quick-tab-pill" onclick="app.setRiwayatFilterStatus('DIPINJAM')">Dipinjam <span id="riwayat-badge-dipinjam" class="quick-tab-badge bg-warning">0</span></button>
+                                <button class="quick-tab-pill" onclick="app.setRiwayatFilterStatus('KEMBALI')">Kembali <span id="riwayat-badge-kembali" class="quick-tab-badge bg-green">0</span></button>
+                                <button class="quick-tab-pill" onclick="app.setRiwayatFilterStatus('OVERDUE')">Terlambat <span id="riwayat-badge-overdue" class="quick-tab-badge bg-danger">0</span></button>
+                            </div>
+
                             <!-- Enhanced Search & Filter Bar -->
-                            <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1rem;">
+                            <div style="padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.75rem; background: rgba(0,0,0,0.15);">
                                 <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                                     <div class="search-box-embedded" style="flex: 1; min-width: 200px;">
                                         <i class="ph ph-magnifying-glass"></i>
                                         <input type="text" id="search-riwayat" placeholder="Cari nama, nomor TRX, atau kelas..." style="flex: 1; border: none; background: transparent; color: white; outline: none; font-size: 0.95rem;">
                                     </div>
-                                    <button id="btn-riwayat-timeline" class="btn btn-outline btn-sm" title="Tampil Timeline"><i class="ph ph-list-bullets"></i></button>
-                                    <select id="filter-status-riwayat" class="input-sm">
-                                        <option value="">Semua Status</option>
-                                        <option value="DIPINJAM">Dipinjam</option>
-                                        <option value="KEMBALI">Kembali</option>
-                                    </select>
                                     <input type="date" id="filter-tanggal-riwayat" class="input-sm" style="color-scheme: dark; color: white; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.4rem 0.75rem; height: 36px; box-sizing: border-box;" title="Tanggal Pinjam">
                                     <select id="filter-bulan-riwayat" class="input-sm">
                                         <option value="">Semua Bulan</option>
@@ -388,7 +491,6 @@
                                         <option value="2029">2029</option>
                                         <option value="2030">2030</option>
                                     </select>
-                                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger); white-space: nowrap;" onclick="app.exportRiwayat()"><i class="ph ph-file-pdf"></i> PDF</button>
                                 </div>
                                 <div id="filter-chips-riwayat" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;"></div>
                             </div>
@@ -401,8 +503,9 @@
                                             <th>TRX</th>
                                             <th>Peminjam</th>
                                             <th>Tanggal Pinjam / Kembali</th>
-                                            <th>Keterangan</th>
+                                            <th>Item Alat</th>
                                             <th>Status</th>
+                                            <th>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -418,44 +521,47 @@
                         </div>
                     </section>
 
+                    <!-- Section: Inventaris Alat -->
                     <section id="alat-section" class="content-section hidden">
                         <div class="glass-card">
                             <div class="card-header flex-header">
                                 <div style="display:flex; align-items:center; gap:0.5rem;">
-                                    <div class="stat-icon bg-blue" style="width:30px; height:30px; font-size:0.9rem;"><i class="ph ph-toolbox"></i></div>
-                                    <h3>Data Inventaris Alat</h3>
+                                    <div class="stat-icon bg-blue" style="width:34px; height:34px; font-size:1rem;"><i class="ph ph-toolbox"></i></div>
+                                    <div>
+                                        <h3 style="margin:0;">Data Inventaris Alat</h3>
+                                        <small style="color:var(--text-muted); font-size:0.75rem;">Master data alat & ketersediaan stok</small>
+                                    </div>
                                 </div>
-                                <div style="display:flex; gap:0.5rem; align-items: center;">
+                                <div style="display:flex; gap:0.5rem; align-items: center; flex-wrap: wrap;">
                                     <div class="search-box-embedded">
                                         <i class="ph ph-magnifying-glass"></i>
-                                        <input type="text" id="alat-search" placeholder="Cari nama atau kode alat..." onkeyup="app.loadAlat()" style="padding: 0.4rem 0.4rem 0.4rem 2rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); color: white; width: 200px; font-size: 0.85rem;">
+                                        <input type="text" id="alat-search" placeholder="Cari nama atau kode alat..." onkeyup="app.loadAlat()" style="padding: 0.4rem 0.4rem 0.4rem 2rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); color: white; width: 190px; font-size: 0.85rem;">
                                     </div>
                                     <div style="display:flex; gap:0.25rem;">
+                                        <button class="btn btn-outline btn-sm" style="color:var(--accent); border-color:var(--accent);" onclick="app.openCetakBarcodeModal()" title="Cetak Barcode / QR Code"><i class="ph ph-qr-code"></i> Barcode/QR</button>
                                         <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportAlat('pdf')" title="Ekspor PDF"><i class="ph ph-file-pdf"></i></button>
                                         <button class="btn btn-outline btn-sm" style="color:var(--success); border-color:var(--success);" onclick="app.exportAlat('excel')" title="Ekspor Excel"><i class="ph ph-file-xls"></i></button>
                                     </div>
                                     <button class="btn btn-outline btn-sm" onclick="app.toggleAlatView()" id="btn-view-toggle" title="Toggle Tampilan"><i class="ph ph-squares-four"></i></button>
-                                    <button class="btn btn-primary btn-sm" onclick="app.openAlatModal()"><i class="ph ph-plus"></i></button>
+                                    <button class="btn btn-primary btn-sm" onclick="app.openAlatModal()"><i class="ph ph-plus"></i> Tambah</button>
                                 </div>
                             </div>
+
+                            <!-- Quick Filter Tabs for Alat -->
+                            <div class="section-quick-tabs" id="alat-tabs">
+                                <button class="quick-tab-pill active" onclick="app.setAlatFilterStatus('')">Semua Alat <span id="alat-badge-all" class="quick-tab-badge">0</span></button>
+                                <button class="quick-tab-pill" onclick="app.setAlatFilterStatus('tersedia')">Siap Dipinjam <span id="alat-badge-tersedia" class="quick-tab-badge bg-green">0</span></button>
+                                <button class="quick-tab-pill" onclick="app.setAlatFilterStatus('dipinjam')">Sedang Dipinjam <span id="alat-badge-dipinjam" class="quick-tab-badge bg-warning">0</span></button>
+                                <button class="quick-tab-pill" onclick="app.setAlatFilterStatus('perbaikan')">Perbaikan / Rusak <span id="alat-badge-perbaikan" class="quick-tab-badge bg-orange">0</span></button>
+                            </div>
+
                             <div id="alat-table-container" class="table-responsive">
                                 <table class="table-modern" id="table-alat">
-                                    <thead>
-                                        <tr>
-                                            <th>Foto</th>
-                                            <th onclick="app.sortAlat('kode_seri')" style="cursor:pointer; user-select:none;">Kode Seri <i id="sort-icon-alat-kode_seri" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
-                                            <th onclick="app.sortAlat('nama')" style="cursor:pointer; user-select:none;">Nama Alat <i id="sort-icon-alat-nama" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
-                                            <th onclick="app.sortAlat('kategori_id')" style="cursor:pointer; user-select:none;">Kategori <i id="sort-icon-alat-kategori_id" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
-                                            <th onclick="app.sortAlat('jumlah_tersedia')" style="cursor:pointer; user-select:none;">Tersedia / Total <i id="sort-icon-alat-jumlah_tersedia" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
-                                            <th onclick="app.sortAlat('kondisi')" style="cursor:pointer; user-select:none;">Kondisi <i id="sort-icon-alat-kondisi" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
-                                            <th>Aksi</th>
-                                        </tr>
-                                    </thead>
                                     <tbody></tbody>
                                 </table>
                             </div>
                             
-                            <div id="alat-grid-container" class="alat-grid-wrapper hidden" style="padding: 1.5rem;">
+                            <div id="alat-grid-container" class="alat-grid-wrapper hidden" style="padding: 1.25rem;">
                                 <div class="alat-grid" id="grid-alat" style="display: grid; gap: 1rem;">
                                     <!-- Populated by JS -->
                                 </div>
@@ -478,18 +584,50 @@
                         <div class="glass-card">
                             <div class="card-header flex-header">
                                 <div style="display:flex; align-items:center; gap:0.5rem;">
-                                    <div class="stat-icon bg-indigo" style="width:30px; height:30px; font-size:0.9rem; background: var(--warning);"><i class="ph ph-package"></i></div>
-                                    <h3>Data Bahan Praktik</h3>
+                                    <div class="stat-icon bg-indigo" style="width:34px; height:34px; font-size:1rem; background: var(--warning);"><i class="ph ph-package"></i></div>
+                                    <div>
+                                        <h3 style="margin:0;">Data Bahan Praktik</h3>
+                                        <small style="color:var(--text-muted); font-size:0.75rem;">Stok bahan habis pakai & alokasi praktikum</small>
+                                    </div>
                                 </div>
-                                <div style="display:flex; gap:0.5rem; align-items: center;">
+                                <div style="display:flex; gap:0.5rem; align-items: center; flex-wrap: wrap;">
                                     <div class="search-box-embedded">
                                         <i class="ph ph-magnifying-glass"></i>
-                                        <input type="text" id="bahan-search" placeholder="Cari bahan..." onkeyup="app.loadBahan()" style="padding: 0.4rem 0.4rem 0.4rem 2rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); color: white; width: 200px; font-size: 0.85rem;">
+                                        <input type="text" id="bahan-search" placeholder="Cari nama / kode bahan..." onkeyup="app.loadBahan()" style="padding: 0.4rem 0.4rem 0.4rem 2rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); color: white; width: 190px; font-size: 0.85rem;">
                                     </div>
-                                    <button class="btn btn-outline btn-sm" onclick="app.exportBahanPDF()" title="Ekspor Data Bahan ke PDF" style="border-color: var(--danger); color: var(--danger);"><i class="ph ph-file-pdf"></i></button>
-                                    <button class="btn btn-primary btn-sm" onclick="app.openBahanModal()"><i class="ph ph-plus"></i></button>
+                                    <button class="btn btn-outline btn-sm" onclick="app.exportBahanPDF()" title="Ekspor Data Bahan ke PDF" style="border-color: var(--danger); color: var(--danger);"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                                    <button class="btn btn-primary btn-sm" onclick="app.openBahanModal()"><i class="ph ph-plus"></i> Tambah Bahan</button>
                                 </div>
                             </div>
+
+                            <!-- Micro-Stat Summary Banner for Bahan -->
+                            <div class="bahan-summary-banner" id="bahan-summary-stats">
+                                <div class="bahan-stat-box">
+                                    <span class="bahan-stat-val" id="bahan-stat-total">0</span>
+                                    <span class="bahan-stat-lbl">Total Jenis</span>
+                                </div>
+                                <div class="bahan-stat-box border-green">
+                                    <span class="bahan-stat-val text-green" id="bahan-stat-aman">0</span>
+                                    <span class="bahan-stat-lbl">Stok Aman</span>
+                                </div>
+                                <div class="bahan-stat-box border-yellow">
+                                    <span class="bahan-stat-val text-yellow" id="bahan-stat-kritis">0</span>
+                                    <span class="bahan-stat-lbl">Menipis</span>
+                                </div>
+                                <div class="bahan-stat-box border-red">
+                                    <span class="bahan-stat-val text-red" id="bahan-stat-habis">0</span>
+                                    <span class="bahan-stat-lbl">Habis (0)</span>
+                                </div>
+                            </div>
+
+                            <!-- Quick Filter Tabs for Bahan -->
+                            <div class="section-quick-tabs" id="bahan-tabs">
+                                <button class="quick-tab-pill active" onclick="app.setBahanFilterStatus('')">Semua Bahan</button>
+                                <button class="quick-tab-pill" onclick="app.setBahanFilterStatus('aman')">Stok Aman</button>
+                                <button class="quick-tab-pill" onclick="app.setBahanFilterStatus('menipis')">Menipis</button>
+                                <button class="quick-tab-pill" onclick="app.setBahanFilterStatus('habis')">Habis (0)</button>
+                            </div>
+
                             <div id="bahan-table-container" class="table-responsive">
                                 <table class="table-modern" id="table-bahan">
                                     <thead>
@@ -498,7 +636,7 @@
                                             <th onclick="app.sortBahan('nama')" style="cursor:pointer; user-select:none;">Nama Bahan <i id="sort-icon-nama" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
                                             <th onclick="app.sortBahan('kategori')" style="cursor:pointer; user-select:none;">Kategori <i id="sort-icon-kategori" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
                                             <th onclick="app.sortBahan('satuan')" style="cursor:pointer; user-select:none;">Satuan <i id="sort-icon-satuan" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
-                                            <th onclick="app.sortBahan('stok')" style="cursor:pointer; user-select:none;">Stok Tersedia <i id="sort-icon-stok" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
+                                            <th onclick="app.sortBahan('stok')" style="cursor:pointer; user-select:none;">Status & Sisa Stok <i id="sort-icon-stok" class="ph ph-caret-circle-up" style="display:none; vertical-align:middle;"></i></th>
                                             <th>Aksi</th>
                                         </tr>
                                     </thead>
@@ -511,12 +649,21 @@
                     <!-- Section: Riwayat Bahan Keluar -->
                     <section id="bahan_keluar-section" class="content-section hidden">
                         <div class="glass-card">
-                            <div class="card-header flex-header">
+                            <div class="card-header flex-header" style="flex-wrap: wrap; gap: 0.75rem;">
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
                                     <div class="stat-icon bg-red" style="width:36px; height:36px; font-size:1.1rem; background: var(--danger);"><i class="ph ph-trend-down"></i></div>
-                                    <h3>Riwayat Pengeluaran Bahan</h3>
+                                    <div>
+                                        <h3 style="margin:0;">Riwayat Pengeluaran Bahan</h3>
+                                        <small style="color:var(--text-muted); font-size:0.75rem;">Log pemakaian & alokasi bahan keluar</small>
+                                    </div>
                                 </div>
-                                <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayatBahan()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                                    <div class="search-box-embedded">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                        <input type="text" id="search-bahan-keluar" placeholder="Cari bahan / petugas..." onkeyup="app.loadBahanKeluar()" style="padding: 0.4rem 0.4rem 0.4rem 2rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); color: white; width: 180px; font-size: 0.85rem;">
+                                    </div>
+                                    <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.exportRiwayatBahan()"><i class="ph ph-file-pdf"></i> Ekspor PDF</button>
+                                </div>
                             </div>
                             <div class="table-responsive">
                                 <table id="table-bahan-keluar" class="table-modern neat-table">
@@ -526,7 +673,7 @@
                                             <th>Nama Bahan</th>
                                             <th>Jumlah Keluar</th>
                                             <th>Satuan</th>
-                                            <th>Status / Keterangan</th>
+                                            <th>Keterangan / Keperluan</th>
                                             <th>Petugas</th>
                                         </tr>
                                     </thead>
@@ -681,6 +828,7 @@
                                     <label>Kondisi</label>
                                     <select id="alat-kondisi">
                                         <option value="Baik">Baik</option>
+                                        <option value="Butuh Perbaikan">Butuh Perbaikan</option>
                                         <option value="Rusak Ringan">Rusak Ringan</option>
                                         <option value="Rusak Berat">Rusak Berat</option>
                                     </select>
@@ -898,11 +1046,16 @@
                     </div>
                     
                     <div class="lending-tools-section mt-4">
-                        <div class="section-header-flex">
+                        <div class="section-header-flex" style="flex-wrap:wrap; gap:0.5rem; align-items:center;">
                             <h4><i class="ph ph-toolbox"></i> Daftar Alat</h4>
-                            <button type="button" class="btn btn-sm btn-outline" onclick="app.openPilihAlatModalEdit()">
-                                <i class="ph ph-plus-circle"></i> Tambah Alat
-                            </button>
+                            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="app.openScannerModal(true)">
+                                    <i class="ph ph-camera"></i> Scan Kamera
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="app.openPilihAlatModalEdit()">
+                                    <i class="ph ph-plus-circle"></i> Pilih Manual
+                                </button>
+                            </div>
                         </div>
                         <div class="table-responsive-minimal">
                             <table class="table-modern" id="table-edit-cart">
@@ -1030,6 +1183,54 @@
         </div>
     </div>
 
+    <!-- Live Barcode & QR Camera Scanner Modal -->
+    <div id="scanner-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="max-width: 480px; width: 92%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="padding: 1rem 1.25rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <div class="stat-icon bg-indigo" style="width:32px; height:32px; font-size:1rem;"><i class="ph ph-camera"></i></div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.1rem;">Scan Barcode / QR Alat</h3>
+                        <small style="color:var(--text-muted); font-size:0.75rem;">Arahkan kamera ke stiker barcode alat</small>
+                    </div>
+                </div>
+                <button class="btn-icon" onclick="app.closeScannerModal()"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1rem 1.25rem; overflow-y: auto; flex: 1;">
+                <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                    <select id="camera-select" style="font-size:0.8rem; padding:0.4rem 0.6rem; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.15); border-radius:8px; flex:1;" onchange="app.changeCamera()">
+                        <option value="">Memuat kamera...</option>
+                    </select>
+                    <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.78rem; color:var(--text-muted); cursor:pointer; user-select:none;">
+                        <input type="checkbox" id="scan-continuous-check" checked> Mode Beruntun
+                    </label>
+                </div>
+                
+                <div id="qr-reader-container" style="position:relative; width:100%; border-radius:12px; overflow:hidden; background:#000000; min-height:240px; display:flex; align-items:center; justify-content:center; border: 1.5px solid rgba(255,255,255,0.15);">
+                    <div id="qr-reader" style="width:100%;"></div>
+                    <div id="scanner-laser" class="scanner-laser"></div>
+                </div>
+
+                <div id="scanner-status-box" style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 0.8rem; text-align: center; color: var(--text-muted); border: 1px solid rgba(255,255,255,0.06);">
+                    <i class="ph ph-crosshair" style="color:var(--accent);"></i> Siap mendeteksi Barcode 1D (Code 128) & 2D QR Code
+                </div>
+
+                <!-- Live Scanned Items Preview within Modal -->
+                <div id="scanner-scanned-preview" style="margin-top:0.75rem; display:none;">
+                    <div style="font-size:0.78rem; font-weight:700; color:var(--success); margin-bottom:0.25rem; display:flex; justify-content:space-between;">
+                        <span><i class="ph ph-check-circle"></i> Berhasil di-scan:</span>
+                        <span id="scanner-count-badge" class="badge bg-green" style="font-size:0.7rem;">0 item</span>
+                    </div>
+                    <div id="scanner-recent-list" style="max-height:90px; overflow-y:auto; font-size:0.8rem; background:rgba(0,0,0,0.25); padding:0.4rem 0.6rem; border-radius:8px; border:1px solid rgba(255,255,255,0.08);"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-outline btn-sm" onclick="app.closeScannerModal()">Tutup / Selesai</button>
+                <small style="color:var(--text-muted); font-size:0.75rem;">Otomatis masuk ke daftar pinjam</small>
+            </div>
+        </div>
+    </div>
+
     <!-- Dialog Modal (Custom Alert/Confirm) -->
     <div id="dialog-modal" class="modal hidden">
         <div class="modal-content glass-card" style="max-width: 400px; text-align: center;">
@@ -1047,8 +1248,71 @@
         </div>
     </div>
 
+    <!-- Cetak Barcode & QR Code Modal -->
+    <div id="barcode-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <div class="stat-icon bg-indigo" style="width:34px; height:34px; font-size:1.05rem;"><i class="ph ph-qr-code"></i></div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem;">Cetak Label Barcode & QR Code</h3>
+                        <small style="color:var(--text-muted); font-size:0.78rem;">Generate dan cetak stiker inventaris alat</small>
+                    </div>
+                </div>
+                <button class="btn-icon" onclick="app.closeModal('barcode-modal')"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem; overflow-y: auto; flex: 1;">
+                <!-- Filter Controls -->
+                <div class="barcode-controls-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; background: rgba(0,0,0,0.25); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:0.35rem;">Tipe Kode:</label>
+                        <select id="barcode-type-select" onchange="app.renderBarcodePreview()" style="width:100%; padding:0.55rem; border-radius:8px; background:var(--bg-color); color:white; border:1px solid var(--border-color);">
+                            <option value="barcode">Barcode Batang (Code 128)</option>
+                            <option value="qrcode">QR Code (2D Matrix)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:0.35rem;">Pilihan Cetak:</label>
+                        <select id="barcode-scope-select" onchange="app.onBarcodeScopeChange()" style="width:100%; padding:0.55rem; border-radius:8px; background:var(--bg-color); color:white; border:1px solid var(--border-color);">
+                            <option value="all">Semua Alat (Jurusan Anda)</option>
+                            <option value="single">Cetak Satu Alat Tertentu</option>
+                        </select>
+                    </div>
+                    <div id="barcode-single-select-wrapper" class="hidden">
+                        <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:0.35rem;">Pilih Alat:</label>
+                        <select id="barcode-single-tool-select" onchange="app.renderBarcodePreview()" style="width:100%; padding:0.55rem; border-radius:8px; background:var(--bg-color); color:white; border:1px solid var(--border-color);">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Preview Header & Container -->
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">
+                        <span style="font-size:0.85rem; font-weight:600; color:var(--text-main);"><i class="ph ph-eye" style="color:var(--accent)"></i> Pratinjau Stiker Label (<span id="barcode-total-count">0</span> Alat)</span>
+                        <small style="color:var(--text-muted); font-size:0.75rem; background:rgba(255,255,255,0.06); padding:0.25rem 0.6rem; border-radius:12px;">Format: Kode Gambar ➔ Kode Seri ➔ Nama Alat</small>
+                    </div>
+                    <div id="barcode-preview-container" class="barcode-preview-grid" style="background:#ffffff; border-radius:12px; padding:1.25rem; min-height:220px; max-height:420px; overflow-y:auto; border:1px solid rgba(255,255,255,0.2);">
+                        <!-- Rendered label stickers -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-outline" onclick="app.closeModal('barcode-modal')">Tutup</button>
+                <button type="button" class="btn btn-primary" onclick="app.printBarcodeLabels()"><i class="ph ph-printer"></i> Cetak / Print Stiker</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Print Area for Native Window.Print -->
+    <div id="print-barcode-area" class="print-only"></div>
+
     <!-- Scripts -->
     <script src="https://unpkg.com/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <!-- Export Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1056,7 +1320,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <script src="./logo.js"></script>
-    <script src="./db.js"></script>
-    <script src="./app-v3.js?v=6"></script>
+    <script src="./db.js?v=25"></script>
+    <script src="./app-v3.js?v=25"></script>
 </body>
 </html>

@@ -34,25 +34,14 @@ const db = {
     getItemId: function (item) {
         if (!item) return null;
         const candidates = [
-            item.id,
-            item.newId,
-            item.newid,
-            item.NewId,
-            item.ID_Barang,
-            item.id_barang,
-            item.nomor_peminjaman,
-            item.Nomor_Peminjaman,
-            item.ID,
-            item.Id,
-            item.kode_seri,
-            item.Kode_Seri,
-            item.nama,
-            item.Nama
+            item.id, item.newId, item.newid, item.NewId, item.ID_Barang, item.id_barang,
+            item.kategori_id, item.kategoriid,
+            item.nomor_peminjaman, item.Nomor_Peminjaman, item.ID, item.Id,
+            item.kode_seri, item.Kode_Seri, item.nama, item.Nama
         ];
-        for (let i = 0; i < candidates.length; i++) {
-            const val = candidates[i];
-            if (val !== undefined && val !== null && String(val).trim() !== '') {
-                return String(val).trim();
+        for (const c of candidates) {
+            if (c !== undefined && c !== null && String(c).trim() !== '') {
+                return String(c).trim();
             }
         }
         return null;
@@ -102,14 +91,14 @@ const db = {
         const result = { ...obj };
         
         const standardKeysMap = {
-            id: ['id', 'newid', 'idbarang', 'kodebarang', 'id_barang', 'kode_barang'],
+            id: ['id', 'newid', 'idbarang', 'kodebarang', 'id_barang', 'kode_barang', 'idkategori', 'kategoriid', 'kodekategori', 'kode_kategori', 'idpeminjaman', 'id_peminjaman', 'kodepeminjaman', 'kode_peminjaman', 'id_trx', 'idtrx'],
             newid: ['newid', 'id', 'new_id'],
-            nama: ['nama', 'namabarang', 'namaalat', 'nama_barang', 'nama_alat'],
-            kategori_id: ['kategoriid', 'idkategori', 'kategori_id', 'id_kategori'],
+            nama: ['nama', 'namabarang', 'namaalat', 'nama_barang', 'nama_alat', 'namakategori', 'nama_kategori'],
+            kategori_id: ['kategoriid', 'idkategori', 'kategori_id', 'id_kategori', 'kategori', 'kodekategori', 'kode_kategori'],
             jurusan_id: ['jurusanid', 'idjurusan', 'kodejurusan', 'jurusan_id', 'id_jurusan', 'kode_jurusan', 'jurusan'],
             kode_seri: ['kodeseri', 'seri', 'kodeserial', 'kode_seri', 'kode_serial'],
-            jumlah_total: ['jumlahtotal', 'totalstok', 'stoktotal', 'jumlah_total', 'total_stok'],
-            jumlah_tersedia: ['jumlahtersedia', 'stoktersedia', 'stok', 'jumlah_tersedia', 'stok_tersedia'],
+            jumlah_total: ['jumlahtotal', 'totalstok', 'stoktotal', 'jumlah_total', 'total_stok', 'total'],
+            jumlah_tersedia: ['jumlahtersedia', 'stoktersedia', 'stok', 'jumlah_tersedia', 'stok_tersedia', 'tersedia'],
             kondisi: ['kondisi'],
             keterangan: ['keterangan'],
             foto: ['foto', 'gambar', 'urlfoto', 'url_foto'],
@@ -124,6 +113,7 @@ const db = {
             tanggal_pinjam: ['tanggalpinjam', 'tglpinjam', 'tanggal_pinjam', 'tgl_pinjam'],
             tanggal_kembali_estimasi: ['tanggalkembaliestimasi', 'estimasi', 'estimasi_kembali', 'tanggal_kembali_estimasi'],
             tanggal_kembali_aktual: ['tanggalkembaliaktual', 'kembaliaktual', 'tanggal_kembali_aktual', 'tgl_kembali_aktual'],
+            created_at: ['createdat', 'created_at', 'tanggalpembuatan', 'tglpembuatan', 'tgl_pembuatan', 'tanggal_pembuatan'],
             status: ['status'],
             items: ['items', 'detail', 'daftaralat', 'daftar_alat'],
             petugas: ['petugas', 'operator'],
@@ -167,60 +157,61 @@ const db = {
             ];
 
             const fetchSheet = async (sheetObj) => {
-                const url = `https://docs.google.com/spreadsheets/d/${this.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetObj.name}&_=${Date.now()}`;
-                const resp = await fetch(url);
-                const text = await resp.text();
-                // Ekstrak JSON dari respons JSONP ala Google
-                const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                const sheetNamesToTry = [sheetObj.name, sheetObj.name.replace(/_/g, ' '), sheetObj.name.replace(/\s+/g, '_')];
+                const uniqueNames = [...new Set(sheetNamesToTry)];
                 
-                try {
-                    const json = JSON.parse(jsonStr);
-                    const data = [];
-                    if (json && json.table && json.table.cols && json.table.rows) {
-                        const headers = json.table.cols.map(c => c.label);
-                        for (let r = 0; r < json.table.rows.length; r++) {
-                            const row = json.table.rows[r];
-                            if (!row || !row.c) continue;
-                            const obj = {};
-                            let hasData = false;
-                            for (let c = 0; c < headers.length; c++) {
-                                if (headers[c]) {
-                                    let cell = row.c[c];
-                                    let val = '';
-                                    if (cell) {
-                                        if (cell.v !== null && cell.v !== undefined) {
-                                            if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
-                                                const parts = cell.v.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
-                                                if (parts) {
-                                                    const y = parseInt(parts[1]);
-                                                    const m = parseInt(parts[2]); // bulan di gviz dimulai dari 0
-                                                    const d = parseInt(parts[3]);
-                                                    const hr = parts[4] ? parseInt(parts[4]) : 0;
-                                                    const min = parts[5] ? parseInt(parts[5]) : 0;
-                                                    const sec = parts[6] ? parseInt(parts[6]) : 0;
-                                                    const pad = n => n.toString().padStart(2, '0');
-                                                    val = `${y}-${pad(m+1)}-${pad(d)}T${pad(hr)}:${pad(min)}:${pad(sec)}.000Z`;
+                for (const sName of uniqueNames) {
+                    try {
+                        const url = `https://docs.google.com/spreadsheets/d/${this.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sName)}&_=${Date.now()}`;
+                        const resp = await fetch(url);
+                        const text = await resp.text();
+                        const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                        const json = JSON.parse(jsonStr);
+                        if (json && json.table && json.table.cols && json.table.rows && json.status !== 'error') {
+                            const headers = json.table.cols.map(c => c.label);
+                            const data = [];
+                            for (let r = 0; r < json.table.rows.length; r++) {
+                                const row = json.table.rows[r];
+                                if (!row || !row.c) continue;
+                                const obj = {};
+                                let hasData = false;
+                                for (let c = 0; c < headers.length; c++) {
+                                    if (headers[c]) {
+                                        let cell = row.c[c];
+                                        let val = '';
+                                        if (cell) {
+                                            if (cell.v !== null && cell.v !== undefined) {
+                                                if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+                                                    const parts = cell.v.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+                                                    if (parts) {
+                                                        const y = parseInt(parts[1]);
+                                                        const m = parseInt(parts[2]);
+                                                        const d = parseInt(parts[3]);
+                                                        const pad = n => n.toString().padStart(2, '0');
+                                                        val = `${y}-${pad(m+1)}-${pad(d)}`;
+                                                    } else {
+                                                        val = cell.f !== undefined ? cell.f : cell.v;
+                                                    }
                                                 } else {
-                                                    val = cell.f !== undefined ? cell.f : cell.v;
+                                                    val = cell.v;
                                                 }
-                                            } else {
-                                                val = cell.v;
+                                            } else if (cell.f !== undefined) {
+                                                val = cell.f;
                                             }
-                                        } else if (cell.f !== undefined) {
-                                            val = cell.f;
                                         }
+                                        obj[headers[c]] = val;
+                                        if (val !== '') hasData = true;
                                     }
-                                    obj[headers[c]] = val;
-                                    if (val !== '') hasData = true;
                                 }
+                                if (hasData) data.push(this.normalizeKeys(obj));
                             }
-                            if (hasData) data.push(this.normalizeKeys(obj));
+                            return { store: sheetObj.store, data: data };
                         }
+                    } catch(e) {
+                        // Coba variasi nama sheet berikutnya
                     }
-                    return { store: sheetObj.store, data: data };
-                } catch(e) {
-                    return { store: sheetObj.store, data: [] }; // abaikan jika sheet kosong/error
                 }
+                return { store: sheetObj.store, data: [] };
             };
 
             const results = await Promise.all(sheets.map(fetchSheet));
@@ -233,6 +224,9 @@ const db = {
                     serverDataObj[res.store] = res.data;
                 }
             }
+            if (saveToLocal) {
+                await this.reapplyPendingQueue();
+            }
             return serverDataObj;
         } catch (e) {
             console.error('Fetch server data failed', e);
@@ -240,65 +234,104 @@ const db = {
         }
     },
 
-    queueHasBeenApplied: function (serverData, queue) {
+    // Memulihkan data antrean yang masih pending agar tidak hilang saat master data di-overwrite
+    reapplyPendingQueue: async function () {
+        try {
+            const queue = await this.getAll('syncQueue');
+            for (const task of queue) {
+                const store = task.storeName;
+                if (!this.stores[store] || !task.payload) continue;
+                const payload = task.payload;
+                const itemId = this.getItemId(payload) || payload.newId || payload.id || payload.ID_Barang;
+                if (task.action && (task.action.startsWith('insert') || task.action.startsWith('update'))) {
+                    if (itemId) {
+                        await this.stores[store].setItem(String(itemId), payload);
+                    }
+                } else if (task.action && task.action.startsWith('delete')) {
+                    if (itemId) {
+                        await this.stores[store].removeItem(String(itemId));
+                    }
+                }
+            }
+        } catch(e) {
+            console.error('reapplyPendingQueue failed', e);
+        }
+    },
+
+    // Mengecek apakah SATU task tertentu sudah tercermin di data server.
+    isTaskApplied: function (serverData, task) {
         const serverPeminjaman = serverData?.peminjaman || [];
         const serverAlat = serverData?.alat || [];
+        const payload = task.payload || {};
+        const action = task.action || '';
+        const storeName = task.storeName || '';
 
-        return queue.every((task) => {
-            const payload = task.payload || {};
-            const action = task.action || '';
-            const storeName = task.storeName || '';
+        if (storeName === 'peminjaman') {
+            const idCandidates = [payload.newId, payload.id, payload.ID_Barang, payload.nomor_peminjaman]
+                .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
 
-            if (storeName === 'peminjaman') {
-                const idCandidates = [payload.newId, payload.id, payload.ID_Barang, payload.nomor_peminjaman]
-                    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
-
-                const match = serverPeminjaman.find((item) => {
-                    const itemId = this.getItemId(item) || '';
-                    const itemNomor = String(item.nomor_peminjaman || item.Nomor_Peminjaman || '');
-                    return idCandidates.some((candidate) => {
-                        const c = String(candidate).trim().toLowerCase();
-                        return c === itemId.toLowerCase() || c === itemNomor.toLowerCase();
-                    });
+            const match = serverPeminjaman.find((item) => {
+                const itemId = this.getItemId(item) || '';
+                const itemNomor = String(item.nomor_peminjaman || item.Nomor_Peminjaman || '');
+                return idCandidates.some((candidate) => {
+                    const c = String(candidate).trim().toLowerCase();
+                    return c === itemId.toLowerCase() || c === itemNomor.toLowerCase();
                 });
+            });
 
-                if (action === 'delete_peminjaman') {
-                    return !match;
-                }
-
-                if (!match) return false;
-
-                if (payload.status && String(match.status || '').toUpperCase() !== String(payload.status).toUpperCase()) {
-                    return false;
-                }
-
-                if (payload.tanggal_kembali_aktual && String(match.tanggal_kembali_aktual || '') !== String(payload.tanggal_kembali_aktual)) {
-                    return false;
-                }
-
-                return true;
+            if (action === 'delete_peminjaman') {
+                return !match;
             }
 
-            if (storeName === 'alat') {
-                const idCandidates = [payload.newId, payload.id, payload.ID_Barang]
-                    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+            if (!match) return false;
 
-                const match = serverAlat.find((item) => {
-                    const itemId = this.getItemId(item) || '';
-                    return idCandidates.some((candidate) => String(candidate).toLowerCase() === itemId.toLowerCase());
-                });
+            if (payload.status && String(match.status || '').toUpperCase() !== String(payload.status).toUpperCase()) {
+                return false;
+            }
 
-                if (!match) return false;
-
-                if (payload.jumlah_tersedia !== undefined && Number(match.jumlah_tersedia) !== Number(payload.jumlah_tersedia)) {
-                    return false;
-                }
-
-                return true;
+            if (payload.tanggal_kembali_aktual && String(match.tanggal_kembali_aktual || '') !== String(payload.tanggal_kembali_aktual)) {
+                return false;
             }
 
             return true;
-        });
+        }
+
+        if (storeName === 'alat') {
+            const idCandidates = [payload.newId, payload.id, payload.ID_Barang]
+                .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+            const match = serverAlat.find((item) => {
+                const itemId = this.getItemId(item) || '';
+                return idCandidates.some((candidate) => String(candidate).toLowerCase() === itemId.toLowerCase());
+            });
+
+            // Untuk aksi DELETE: task dianggap BERHASIL jika data SUDAH TIDAK ADA di server
+            if (action === 'delete_alat') {
+                return !match;
+            }
+
+            if (!match) return false;
+
+            if (payload.jumlah_tersedia !== undefined && Number(match.jumlah_tersedia) !== Number(payload.jumlah_tersedia)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        return true;
+    },
+
+    // Kept for backward compatibility: true hanya jika SEMUA task di antrean sudah applied.
+    queueHasBeenApplied: function (serverData, queue) {
+        return queue.every((task) => this.isTaskApplied(serverData, task));
+    },
+
+    // Mengembalikan daftar task.id yang SUDAH terbukti tersimpan di server,
+    // supaya task yang berhasil bisa dibersihkan dari antrean satu-satu tanpa
+    // ikut menahan task lain yang belum/gagal.
+    getAppliedTaskIds: function (serverData, queue) {
+        return queue.filter((task) => this.isTaskApplied(serverData, task)).map((task) => task.id);
     },
 
     // Perform Sync to Server
@@ -311,7 +344,9 @@ const db = {
 
         if (this._isSyncing) return false;
         this._isSyncing = true;
-        
+
+        const MAX_RETRY = 10; // setelah gagal terverifikasi sebanyak ini, task dibuang agar tidak menyumbat antrean selamanya
+
         try {
             console.log("Mencoba sync", queue.length, "data ke gsheet...");
 
@@ -323,35 +358,68 @@ const db = {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }
             });
 
-            // Beri jeda 2 detik agar Google Apps Script sempat menyimpan ke baris spreadsheet
-            await new Promise(r => setTimeout(r, 2000));
+            // Beri jeda 2.5 detik agar Google Apps Script sempat menyimpan ke baris spreadsheet
+            await new Promise(r => setTimeout(r, 2500));
 
             // Tarik ulang data menggunakan gviz yang super cepat (tanpa menyimpan ke local dulu)
             const resultData = await this.fetchServerData(false);
 
             if (resultData) {
-                const applied = this.queueHasBeenApplied(resultData, queue);
-                if (!applied) {
-                    console.warn('Sinkronisasi belum terlihat di server, queue dipertahankan.');
-                    this._isSyncing = false;
-                    return false;
+                const appliedIds = new Set(this.getAppliedTaskIds(resultData, queue));
+                const stillPending = queue.filter((task) => !appliedIds.has(task.id));
+
+                // PENTING: hapus HANYA task yang terbukti berhasil. Task yang belum/gagal
+                // tetap di antrean untuk dicoba lagi di sync berikutnya, TANPA ikut menahan
+                // task-task lain yang sudah berhasil (beda dari perilaku lama yang all-or-nothing).
+                for (const task of queue) {
+                    if (appliedIds.has(task.id)) {
+                        await this.stores.syncQueue.removeItem(task.id);
+                    }
                 }
 
-                await this.stores.syncQueue.clear();
-                
                 // Simpan data final yang terkonfirmasi ke database lokal
                 for (const store of Object.keys(resultData)) {
                     await this.saveMasterData(store, resultData[store]);
                 }
-                
-                console.log("Sync sukses!");
-                if (typeof this.onSyncSuccess === 'function') {
-                    try {
-                        this.onSyncSuccess();
-                    } catch(e) { console.error('onSyncSuccess callback error', e); }
+                await this.reapplyPendingQueue();
+
+                if (stillPending.length === 0) {
+                    console.log("Sync sukses!");
+                    if (typeof this.onSyncSuccess === 'function') {
+                        try {
+                            this.onSyncSuccess();
+                        } catch (e) { console.error('onSyncSuccess callback error', e); }
+                    }
+                    this._isSyncing = false;
+                    return true;
                 }
+
+                // Sebagian berhasil, sebagian belum. Naikkan hitungan percobaan tiap task
+                // yang masih pending; buang task yang sudah gagal terlalu sering supaya
+                // tidak menyumbat antrean untuk perubahan-perubahan baru selanjutnya.
+                let droppedCount = 0;
+                for (const task of stillPending) {
+                    task.retryCount = (task.retryCount || 0) + 1;
+                    if (task.retryCount > MAX_RETRY) {
+                        console.warn('Task gagal disinkronkan setelah beberapa percobaan, dibuang dari antrean:', task);
+                        await this.stores.syncQueue.removeItem(task.id);
+                        droppedCount++;
+                        if (typeof this.onSyncTaskDropped === 'function') {
+                            try { this.onSyncTaskDropped(task); } catch (e) { console.error('onSyncTaskDropped callback error', e); }
+                        }
+                    } else {
+                        await this.stores.syncQueue.setItem(task.id, task);
+                    }
+                }
+
+                console.warn(`Sinkronisasi sebagian: ${queue.length - stillPending.length}/${queue.length} berhasil, ${stillPending.length - droppedCount} masih ditunda, ${droppedCount} dibuang karena gagal berulang.`);
+
+                if (typeof this.onSyncPartial === 'function') {
+                    try { this.onSyncPartial({ total: queue.length, applied: queue.length - stillPending.length, pending: stillPending.length - droppedCount, dropped: droppedCount }); } catch (e) { console.error('onSyncPartial callback error', e); }
+                }
+
                 this._isSyncing = false;
-                return true;
+                return false;
             }
 
             this._isSyncing = false;
@@ -363,6 +431,7 @@ const db = {
         }
     }
 };
+
 
 // Initialize early
 db.init();

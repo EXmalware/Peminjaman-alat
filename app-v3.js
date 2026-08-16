@@ -16,7 +16,10 @@ const app = {
         alatPage: 1,
         alatLimit: 50,
         alatSort: { column: '', dir: 'asc' },
-        bahanSort: { column: '', dir: 'asc' }
+        bahanSort: { column: '', dir: 'asc' },
+        alatStatusFilter: '',
+        bahanStatusFilter: '',
+        riwayatStatusFilter: ''
     },
 
     init: async function () {
@@ -138,6 +141,39 @@ const app = {
         // Network Status
         window.addEventListener('online', () => this.updateNetworkStatus(true));
         window.addEventListener('offline', () => this.updateNetworkStatus(false));
+
+        // Global Barcode Scanner Gun Listener (USB / Bluetooth Hardware Scanner)
+        let barcodeBuffer = '';
+        let lastKeyTime = Date.now();
+
+        window.addEventListener('keydown', (e) => {
+            const activeElem = document.activeElement;
+            const isInputFocused = activeElem && (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA' || activeElem.isContentEditable);
+            
+            // Allow if nothing is focused or if focused in #barcode-gun-input
+            if (isInputFocused && activeElem.id !== 'barcode-gun-input') {
+                return;
+            }
+
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastKeyTime;
+            lastKeyTime = currentTime;
+
+            if (e.key === 'Enter') {
+                if (barcodeBuffer.length >= 2) {
+                    const scanned = barcodeBuffer.trim();
+                    barcodeBuffer = '';
+                    this.handleScanResult(scanned);
+                }
+                barcodeBuffer = '';
+            } else if (e.key && e.key.length === 1) {
+                // If keys come rapidly (< 80ms between characters), it is a barcode scanner gun
+                if (timeDiff > 120) {
+                    barcodeBuffer = '';
+                }
+                barcodeBuffer += e.key;
+            }
+        });
     },
 
     testKoneksi: async function () {
@@ -265,6 +301,17 @@ const app = {
             this.loadActivePeminjaman();
             this.loadRiwayat();
             this.loadDashboard();
+        };
+        db.onSyncPartial = () => {
+            this.loadActivePeminjaman();
+            this.loadRiwayat();
+            this.loadDashboard();
+        };
+        // Task yang gagal disinkronkan berkali-kali (kemungkinan data korup/tidak valid)
+        // dibuang otomatis oleh db.js agar tidak menyumbat antrean selamanya.
+        // Beri tahu pengguna secara eksplisit alih-alih diam-diam menghilang.
+        db.onSyncTaskDropped = (task) => {
+            this.showToast(`Sebagian perubahan (${task.storeName}) gagal disinkronkan ke server setelah beberapa percobaan dan dibatalkan. Mohon periksa/ulangi input data tersebut.`, 'error');
         };
         this.backgroundSync();
 
@@ -634,26 +681,441 @@ const app = {
         }
     },
 
+    // --- Dashboard Analytics & Interactive Charts
+    dashboardState: {
+        period: 'semua',
+        chartType: 'line',
+        chartInstance: null
+    },
+
+    animateValue: function (elementId, start, end, duration = 800) {
+        const obj = document.getElementById(elementId);
+        if (!obj) return;
+        const target = Number(end);
+        if (isNaN(target)) {
+            obj.textContent = end;
+            return;
+        }
+        if (start === target) {
+            obj.textContent = target;
+            return;
+        }
+        const range = target - start;
+        let current = start;
+        const increment = target > start ? 1 : -1;
+        const stepTime = Math.max(15, Math.abs(Math.floor(duration / (range || 1))));
+        const startTime = performance.now();
+
+        const step = (currentTime) => {
+            const progress = Math.min((currentTime - startTime) / duration, 1);
+            // Ease out cubic
+            const easeProgress = 1 - Math.pow(1 - progress, 3);
+            const val = Math.round(start + range * easeProgress);
+            obj.textContent = val;
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                obj.textContent = target;
+            }
+        };
+        requestAnimationFrame(step);
+    },
+
+    setDashboardPeriod: function (period) {
+        this.dashboardState.period = period;
+        // Update period buttons UI
+        const pills = document.querySelectorAll('#dashboard-period-filter .period-pill');
+        pills.forEach(p => {
+            if (p.getAttribute('data-period') === period) {
+                p.classList.add('active');
+            } else {
+                p.classList.remove('active');
+            }
+        });
+        const periodLabels = {
+            'semua': 'Semua Waktu',
+            'bulan': 'Bulan Ini',
+            'minggu': '7 Hari Terakhir',
+            'hari': 'Hari Ini'
+        };
+        const lbl = document.getElementById('stat-periode-label');
+        if (lbl) lbl.textContent = periodLabels[period] || 'Semua';
+
+        this.loadDashboard();
+    },
+
+    toggleChartType: function (type) {
+        this.dashboardState.chartType = type;
+        const btnLine = document.getElementById('btn-chart-line');
+        const btnBar = document.getElementById('btn-chart-bar');
+        if (btnLine && btnBar) {
+            if (type === 'line') {
+                btnLine.classList.add('active');
+                btnBar.classList.remove('active');
+            } else {
+                btnBar.classList.add('active');
+                btnLine.classList.remove('active');
+            }
+        }
+        this.loadDashboard();
+    },
+
+    filterRiwayatByPeriod: function (riwayat, period) {
+        if (!riwayat || !riwayat.length) return [];
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        if (period === 'hari') {
+            return riwayat.filter(p => {
+                const pDate = (p.created_at || p.tanggal_pinjam || '').split('T')[0];
+                return pDate === todayStr;
+            });
+        }
+        if (period === 'minggu') {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(now.getDate() - 7);
+            const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+            return riwayat.filter(p => {
+                const pDate = (p.created_at || p.tanggal_pinjam || '').split('T')[0];
+                return pDate >= sevenDaysAgoStr && pDate <= todayStr;
+            });
+        }
+        if (period === 'bulan') {
+            const currentMonthStr = todayStr.substring(0, 7); // yyyy-mm
+            return riwayat.filter(p => {
+                const pDate = (p.created_at || p.tanggal_pinjam || '').split('T')[0];
+                return pDate.startsWith(currentMonthStr);
+            });
+        }
+        return riwayat;
+    },
+
+    calculateTopAlat: function (period, riwayatFiltered, filteredAlat) {
+        const container = document.getElementById('top-tools-leaderboard');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const myJurusanId = String(this.state.user?.jurusan_id || '');
+        const isAdmin = !this.state.user || this.state.user.role === 'Admin';
+
+        // Map alat lookup by ID & Name HANYA untuk alat jurusan terkait jika bukan Admin
+        const validAlatMap = {};
+        filteredAlat.forEach(a => {
+            const aId = String(db.getItemId(a) || a.id || a.newId || '');
+            if (aId) validAlatMap[aId] = a;
+            if (a.nama) validAlatMap[String(a.nama).trim().toLowerCase()] = a;
+        });
+
+        // Tally borrowings
+        const countMap = {};
+        riwayatFiltered.forEach(p => {
+            // Jika bukan Admin, pastikan peminjaman sesuai jurusan
+            if (!isAdmin && p.jurusan_id && String(p.jurusan_id) !== myJurusanId) return;
+
+            try {
+                const items = JSON.parse(p.items || '[]');
+                items.forEach(it => {
+                    const itId = String(it.id || it.newId || '').trim();
+                    const itName = it.nama || it.nama_alat || it.name || 'Alat';
+                    
+                    // Pastikan alat tersebut termasuk dalam jurusan yang login jika bukan Admin
+                    const matchedAlat = validAlatMap[itId] || validAlatMap[itName.toLowerCase()] || null;
+                    if (!isAdmin && !matchedAlat) {
+                        return; // Lewati alat yang bukan milik jurusan ini
+                    }
+
+                    const key = itId || (matchedAlat ? String(db.getItemId(matchedAlat) || matchedAlat.id || itName.toLowerCase()) : itName.toLowerCase());
+                    const qty = Number(it.qty || it.jumlah || 1);
+
+                    if (!countMap[key]) {
+                        countMap[key] = {
+                            id: itId,
+                            nama: matchedAlat ? matchedAlat.nama : itName,
+                            count: 0,
+                            alatObj: matchedAlat
+                        };
+                    }
+                    countMap[key].count += qty;
+                });
+            } catch (e) { }
+        });
+
+        const sortedTools = Object.values(countMap).sort((a, b) => b.count - a.count).slice(0, 5);
+
+        if (sortedTools.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding: 2.5rem 1rem; color:var(--text-muted);">
+                    <i class="ph ph-toolbox" style="font-size:2rem; opacity:0.4; margin-bottom:0.5rem; display:block;"></i>
+                    <p style="font-size:0.85rem; margin:0;">Belum ada data peminjaman untuk periode ini</p>
+                </div>
+            `;
+            return;
+        }
+
+        const maxCount = sortedTools[0].count || 1;
+
+        sortedTools.forEach((t, idx) => {
+            const rank = idx + 1;
+            const rankClass = rank === 1 ? 'rank-1' : (rank === 2 ? 'rank-2' : (rank === 3 ? 'rank-3' : 'rank-other'));
+            const percent = Math.max(12, Math.round((t.count / maxCount) * 100));
+            const toolData = t.alatObj || {};
+            const fotoUrl = toolData.foto ? this.formatDriveImageUrl(toolData.foto) : '';
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'top-tool-item';
+            itemDiv.innerHTML = `
+                <div class="top-tool-rank ${rankClass}">#${rank}</div>
+                ${fotoUrl 
+                    ? `<img class="top-tool-thumb" src="${fotoUrl}" alt="${t.nama}" onerror="this.outerHTML='<div class=\\'top-tool-thumb-placeholder\\'><i class=\\'ph ph-wrench\\'></i></div>'">` 
+                    : `<div class="top-tool-thumb-placeholder"><i class="ph ph-wrench"></i></div>`
+                }
+                <div class="top-tool-body">
+                    <div class="top-tool-name-row">
+                        <span class="top-tool-name" title="${t.nama}">${t.nama}</span>
+                        <span class="top-tool-count-badge">${t.count}x dipinjam</span>
+                    </div>
+                    <div class="top-tool-bar-bg">
+                        <div class="top-tool-bar-fill" style="width: 0%" data-target-width="${percent}%"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(itemDiv);
+        });
+
+        // Trigger smooth bar width animation
+        setTimeout(() => {
+            container.querySelectorAll('.top-tool-bar-fill').forEach(bar => {
+                const target = bar.getAttribute('data-target-width');
+                if (target) bar.style.width = target;
+            });
+        }, 100);
+    },
+
+    renderBorrowingTrendChart: function (period, riwayatFiltered) {
+        const canvas = document.getElementById('borrowingTrendChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        const ctx = canvas.getContext('2d');
+        const now = new Date();
+
+        let labels = [];
+        let dataDipinjam = [];
+        let dataKembali = [];
+
+        if (period === 'hari') {
+            // Group by hour (08:00 - 17:00)
+            labels = ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00'];
+            dataDipinjam = [0, 0, 0, 0, 0, 0];
+            dataKembali = [0, 0, 0, 0, 0, 0];
+
+            riwayatFiltered.forEach(p => {
+                const d = new Date(p.created_at || p.tanggal_pinjam);
+                const h = d.getHours();
+                const bucket = h < 9 ? 0 : (h < 11 ? 1 : (h < 13 ? 2 : (h < 15 ? 3 : (h < 17 ? 4 : 5))));
+                dataDipinjam[bucket]++;
+                if (p.status === 'KEMBALI') dataKembali[bucket]++;
+            });
+        } else if (period === 'minggu') {
+            // 7 Days
+            const daysName = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+            labels = [];
+            const dateKeys = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(now.getDate() - i);
+                const dStr = d.toISOString().split('T')[0];
+                dateKeys.push(dStr);
+                labels.push(daysName[d.getDay()] + ` (${d.getDate()})`);
+            }
+            dataDipinjam = dateKeys.map(k => riwayatFiltered.filter(p => (p.created_at || p.tanggal_pinjam || '').startsWith(k)).length);
+            dataKembali = dateKeys.map(k => riwayatFiltered.filter(p => p.status === 'KEMBALI' && (p.tanggal_kembali_aktual || p.created_at || '').startsWith(k)).length);
+        } else if (period === 'bulan') {
+            // 4 Weeks
+            labels = ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4', 'Minggu 5'];
+            dataDipinjam = [0, 0, 0, 0, 0];
+            dataKembali = [0, 0, 0, 0, 0];
+
+            riwayatFiltered.forEach(p => {
+                const d = new Date(p.created_at || p.tanggal_pinjam);
+                const day = d.getDate();
+                const weekIdx = Math.min(4, Math.floor((day - 1) / 7));
+                dataDipinjam[weekIdx]++;
+                if (p.status === 'KEMBALI') dataKembali[weekIdx]++;
+            });
+        } else {
+            // All time: Last 6 Months
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            labels = [];
+            const monthKeys = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const ym = d.toISOString().substring(0, 7);
+                monthKeys.push(ym);
+                labels.push(monthNames[d.getMonth()] + ' ' + d.getFullYear().toString().substring(2));
+            }
+            dataDipinjam = monthKeys.map(k => riwayatFiltered.filter(p => (p.created_at || p.tanggal_pinjam || '').startsWith(k)).length);
+            dataKembali = monthKeys.map(k => riwayatFiltered.filter(p => p.status === 'KEMBALI' && (p.tanggal_kembali_aktual || p.created_at || '').startsWith(k)).length);
+        }
+
+        // Gradients
+        const gradientPinjam = ctx.createLinearGradient(0, 0, 0, 260);
+        gradientPinjam.addColorStop(0, 'rgba(99, 102, 241, 0.45)');
+        gradientPinjam.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+        const gradientKembali = ctx.createLinearGradient(0, 0, 0, 260);
+        gradientKembali.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
+        gradientKembali.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+        if (this.dashboardState.chartInstance) {
+            this.dashboardState.chartInstance.destroy();
+        }
+
+        const isBar = this.dashboardState.chartType === 'bar';
+
+        this.dashboardState.chartInstance = new Chart(ctx, {
+            type: isBar ? 'bar' : 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Peminjaman',
+                        data: dataDipinjam,
+                        borderColor: '#6366f1',
+                        backgroundColor: isBar ? '#6366f1' : gradientPinjam,
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.38,
+                        pointBackgroundColor: '#6366f1',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        borderRadius: isBar ? 6 : 0
+                    },
+                    {
+                        label: 'Pengembalian',
+                        data: dataKembali,
+                        borderColor: '#10b981',
+                        backgroundColor: isBar ? '#10b981' : gradientKembali,
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.38,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        borderRadius: isBar ? 6 : 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 11, weight: '600' },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                        borderWidth: 1,
+                        padding: 10,
+                        boxPadding: 4,
+                        usePointStyle: true,
+                        callbacks: {
+                            label: function (context) {
+                                return ` ${context.dataset.label}: ${context.parsed.y} transaksi`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.04)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 10 }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.06)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 10 },
+                            stepSize: 1,
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    },
+
     loadDashboard: async function () {
-        const alat = this.getFilteredData(await db.getAll('alat'));
+        const allAlat = await db.getAll('alat');
+        const alat = this.getFilteredData(allAlat);
         const riwayatRaw = await db.getAll('peminjaman');
         const riwayat = this.getFilteredData(riwayatRaw);
 
-        document.getElementById('stat-total-alat').textContent = alat.length;
-        document.getElementById('stat-tersedia').textContent = alat.filter(a => Number(a.jumlah_tersedia) > 0).length;
+        // Filtered transactions by selected period
+        const period = this.dashboardState.period || 'semua';
+        const riwayatPeriod = this.filterRiwayatByPeriod(riwayat, period);
 
-        // Count active borrowings
+        // 1. Stat Cards with Animated Count-up
+        const totalAlatCount = alat.length;
+        const totalTersediaCount = alat.filter(a => Number(a.jumlah_tersedia) > 0).length;
         const activeBorrowings = riwayat.filter(p => p.status === 'DIPINJAM');
         const activeCount = activeBorrowings.length;
-        document.getElementById('stat-dipinjam').textContent = activeCount;
+        const overdueCount = activeBorrowings.filter(p => this.isOverdue(p.tanggal_kembali_estimasi)).length;
+        const totalTransaksiPeriod = riwayatPeriod.length;
 
-        const statTerlambat = document.getElementById('stat-terlambat');
-        if (statTerlambat) {
-            const overdueCount = activeBorrowings.filter(p => this.isOverdue(p.tanggal_kembali_estimasi)).length;
-            statTerlambat.textContent = overdueCount;
+        this.animateValue('stat-total-alat', 0, totalAlatCount);
+        this.animateValue('stat-tersedia', 0, totalTersediaCount);
+        this.animateValue('stat-dipinjam', 0, activeCount);
+        this.animateValue('stat-terlambat', 0, overdueCount);
+        this.animateValue('stat-total-transaksi', 0, totalTransaksiPeriod);
+
+        // Availability percentage badge
+        const pctElem = document.getElementById('stat-ketersediaan-pct');
+        if (pctElem) {
+            const pct = totalAlatCount > 0 ? Math.round((totalTersediaCount / totalAlatCount) * 100) : 0;
+            pctElem.textContent = `${pct}% Siap`;
         }
 
-        // Load Bahan Kritis (Habis/Menipis)
+        // Overdue badge styling
+        const overdueBadge = document.getElementById('stat-overdue-alert');
+        if (overdueBadge) {
+            if (overdueCount > 0) {
+                overdueBadge.textContent = `${overdueCount} Telat!`;
+                overdueBadge.className = 'stat-subbadge bg-danger';
+            } else {
+                overdueBadge.textContent = 'Aman';
+                overdueBadge.className = 'stat-subbadge bg-green';
+            }
+        }
+
+        // 2. Interactive Charts & Top Borrowed Tools Leaderboard
+        this.renderBorrowingTrendChart(period, riwayatPeriod);
+        this.calculateTopAlat(period, riwayatPeriod, alat);
+
+        // 3. Load Bahan Kritis (Habis/Menipis)
         const bahanTable = document.getElementById('dashboard-bahan-kritis-table');
         if (bahanTable) {
             const tbody = bahanTable.querySelector('tbody');
@@ -665,12 +1127,6 @@ const app = {
                 bahanRaw = bahanRaw.filter(b => String(b.Kode_jurusan || b.jurusan_id || '') === myJurusanId);
             }
             
-            const statBahan = document.getElementById('stat-bahan-tersedia');
-            if (statBahan) {
-                const bahanTersediaCount = bahanRaw.filter(b => Number(b.Stok || 0) > 0).length;
-                statBahan.textContent = bahanTersediaCount;
-            }
-            
             let bahanKritis = bahanRaw.filter(b => {
                 const stok = Number(b.Stok || 0);
                 const min = Number(b.Stok_Minimal || 0);
@@ -678,7 +1134,7 @@ const app = {
             }).sort((a, b) => Number(a.Stok || 0) - Number(b.Stok || 0));
 
             if (bahanKritis.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem;">Semua stok bahan aman</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color:var(--text-muted);"><i class="ph ph-check-circle" style="color:var(--success); font-size:1.2rem; vertical-align:middle; margin-right:0.4rem;"></i>Semua stok bahan dalam kondisi aman</td></tr>';
             } else {
                 bahanKritis.forEach(b => {
                     const stok = Number(b.Stok || 0);
@@ -699,7 +1155,7 @@ const app = {
             }
         }
 
-        // Load 10 Recent Peminjaman
+        // 4. Load 10 Recent Peminjaman
         const recentTable = document.getElementById('table-recent-peminjaman');
         if (recentTable) {
             const tbody = recentTable.querySelector('tbody');
@@ -707,7 +1163,7 @@ const app = {
             const recentList = riwayat.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
             
             if (recentList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem;">Tidak ada riwayat transaksi</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color:var(--text-muted);">Tidak ada riwayat transaksi</td></tr>';
             } else {
                 recentList.forEach(p => {
                     let statusBadge = p.status === 'DIPINJAM' ? '<span class="badge" style="background:var(--warning); color:white; padding:2px 6px;">DIPINJAM</span>' : '<span class="badge" style="background:var(--success); color:white; padding:2px 6px;">KEMBALI</span>';
@@ -970,14 +1426,56 @@ const app = {
         this.loadAlat();
     },
 
+    setAlatFilterStatus: function (status) {
+        this.state.alatStatusFilter = status;
+        this.state.alatPage = 1;
+        const container = document.getElementById('alat-tabs');
+        if (container) {
+            const btns = container.querySelectorAll('.quick-tab-pill');
+            btns.forEach(b => b.classList.remove('active'));
+            const targetBtn = Array.from(btns).find(b => {
+                const attr = b.getAttribute('onclick');
+                return attr && attr.includes(`'${status}'`);
+            });
+            if (targetBtn) targetBtn.classList.add('active');
+        }
+        this.loadAlat();
+    },
+
     loadAlat: async function () {
         const query = document.getElementById('alat-search')?.value.toLowerCase() || '';
         const rawAlat = await db.getAll('alat');
-        let alatDataFiltered = this.getFilteredData(rawAlat).filter(a => {
+        const allJurusanAlat = this.getFilteredData(rawAlat);
+
+        // Calculate counts for status tabs
+        const countAll = allJurusanAlat.length;
+        const countTersedia = allJurusanAlat.filter(a => Number(a.jumlah_tersedia || 0) > 0).length;
+        const countDipinjam = allJurusanAlat.filter(a => (Number(a.jumlah_total || 0) - Number(a.jumlah_tersedia || 0)) > 0).length;
+        const countPerbaikan = allJurusanAlat.filter(a => a.kondisi && a.kondisi !== 'Baik').length;
+
+        const bAll = document.getElementById('alat-badge-all');
+        const bTersedia = document.getElementById('alat-badge-tersedia');
+        const bDipinjam = document.getElementById('alat-badge-dipinjam');
+        const bPerbaikan = document.getElementById('alat-badge-perbaikan');
+        if (bAll) bAll.textContent = countAll;
+        if (bTersedia) bTersedia.textContent = countTersedia;
+        if (bDipinjam) bDipinjam.textContent = countDipinjam;
+        if (bPerbaikan) bPerbaikan.textContent = countPerbaikan;
+
+        let alatDataFiltered = allJurusanAlat.filter(a => {
             const name = String(a.nama || '').toLowerCase();
             const code = String(a.kode_seri || '').toLowerCase();
             return name.includes(query) || code.includes(query);
         });
+
+        // Filter by Status Tab
+        if (this.state.alatStatusFilter === 'tersedia') {
+            alatDataFiltered = alatDataFiltered.filter(a => Number(a.jumlah_tersedia || 0) > 0);
+        } else if (this.state.alatStatusFilter === 'dipinjam') {
+            alatDataFiltered = alatDataFiltered.filter(a => (Number(a.jumlah_total || 0) - Number(a.jumlah_tersedia || 0)) > 0);
+        } else if (this.state.alatStatusFilter === 'perbaikan') {
+            alatDataFiltered = alatDataFiltered.filter(a => a.kondisi && a.kondisi !== 'Baik');
+        }
 
         // --- Proses Sorting Alat ---
         const sc = this.state.alatSort.column;
@@ -1028,23 +1526,74 @@ const app = {
         tbody.innerHTML = '';
         if (grid) grid.innerHTML = '';
 
+        if (alatData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2.5rem; color:var(--text-muted);"><i class="ph ph-magnifying-glass" style="font-size:1.6rem; display:block; margin-bottom:0.5rem; opacity:0.5;"></i>Tidak ada alat yang cocok dengan filter</td></tr>';
+        }
+
         alatData.forEach(a => {
             const katName = katMap[a.kategori_id] || a.kategori_id || '-';
             const imgUrl = this.getDriveImageUrl(a.foto);
 
-            // Render Tabel
+            // Row Highlight Style & Grid Color berdasarkan Kondisi (tanpa teks kondisi di tabel)
+            let rowHighlightStyle = '';
+            let kondisiColor = 'var(--text-muted)';
+            if (a.kondisi === 'Baik') {
+                kondisiColor = 'var(--success)';
+                rowHighlightStyle = 'border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.05);';
+            } else if (a.kondisi === 'Butuh Perbaikan') {
+                kondisiColor = '#fbbf24';
+                rowHighlightStyle = 'border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.08);';
+            } else if (a.kondisi === 'Rusak Ringan') {
+                kondisiColor = '#fb923c';
+                rowHighlightStyle = 'border-left: 4px solid #f97316; background: rgba(249, 115, 22, 0.08);';
+            } else if (a.kondisi === 'Rusak Berat') {
+                kondisiColor = 'var(--danger)';
+                rowHighlightStyle = 'border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08);';
+            } else {
+                rowHighlightStyle = 'border-left: 4px solid rgba(255, 255, 255, 0.1);';
+            }
+
+            // Mini Stock Progress Bar
+            const totalQty = Number(a.jumlah_total || 0);
+            const availQty = Number(a.jumlah_tersedia || 0);
+            const stockPct = totalQty > 0 ? Math.min(100, Math.round((availQty / totalQty) * 100)) : 0;
+            let stockFillClass = 'bg-healthy';
+            if (stockPct <= 25) stockFillClass = 'bg-empty';
+            else if (stockPct <= 50) stockFillClass = 'bg-low';
+
+            const stockMeterHtml = `
+                <div class="mini-stock-container">
+                    <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                        <b>${availQty}</b> <span style="color:var(--text-muted);">/ ${totalQty}</span>
+                    </div>
+                    <div class="mini-stock-bar">
+                        <div class="mini-stock-fill ${stockFillClass}" style="width:${stockPct}%"></div>
+                    </div>
+                </div>
+            `;
+
+            // Render Tabel (Urutan: Foto, Nama Alat + Kode Seri di bawahnya, Kategori, Stok Meter, Aksi)
             const tr = document.createElement('tr');
+            tr.style.cssText = `${rowHighlightStyle} transition: background 0.2s ease;`;
             tr.innerHTML = `
-                <td>${imgUrl ? `<img src="${imgUrl}" style="width:40px; height:40px; object-fit:cover; border-radius:8px;">` : `<div style="width:40px; height:40px; background:gray; border-radius:8px; display:flex; align-items:center; justify-content:center"><i class="ph ph-image" style="color:white"></i></div>`}</td>
-                <td>${a.kode_seri}</td>
-                <td>${a.nama}</td>
-                <td><span class="badge">${katName}</span></td>
-                <td><b>${a.jumlah_tersedia}</b> / ${a.jumlah_total}</td>
-                <td>${a.kondisi}</td>
-                <td>
-                    <div style="display:flex; gap:0.25rem;">
-                        <button class="btn-icon" onclick='app.editAlat(${JSON.stringify(a)})'><i class="ph ph-pencil"></i></button>
-                        <button class="btn-icon" onclick="app.hapusAlat('${a.id || a.newId}')"><i class="ph ph-trash" style="color:var(--danger)"></i></button>
+                <td style="width: 52px; padding: 0.6rem 0.5rem 0.6rem 0.75rem;">
+                    ${imgUrl ? `<img src="${imgUrl}" style="width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">` : `<div style="width:44px; height:44px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; display:flex; align-items:center; justify-content:center"><i class="ph ph-image" style="color:var(--text-muted); font-size:1.2rem;"></i></div>`}
+                </td>
+                <td style="padding: 0.6rem 0.75rem;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); line-height: 1.25; margin-bottom: 0.2rem;">${a.nama}</div>
+                    <div style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">${a.kode_seri}</div>
+                </td>
+                <td style="padding: 0.6rem 0.75rem;">
+                    <span class="badge" style="background:rgba(255,255,255,0.06); color:var(--text-main); font-size:0.75rem; border:1px solid rgba(255,255,255,0.08);">${katName}</span>
+                </td>
+                <td style="min-width: 110px; padding: 0.6rem 0.75rem;">
+                    ${stockMeterHtml}
+                </td>
+                <td style="padding: 0.6rem 0.75rem; text-align: right;">
+                    <div style="display:flex; gap:0.3rem; justify-content:flex-end;">
+                        <button class="btn-icon" onclick='app.openCetakBarcodeModal(${JSON.stringify(a)})' title="Cetak Barcode / QR"><i class="ph ph-qr-code"></i></button>
+                        <button class="btn-icon" onclick='app.editAlat(${JSON.stringify(a)})' title="Edit Alat"><i class="ph ph-pencil"></i></button>
+                        <button class="btn-icon" onclick="app.hapusAlat('${a.id || a.newId}')" title="Hapus Alat"><i class="ph ph-trash" style="color:var(--danger)"></i></button>
                     </div>
                 </td>
             `;
@@ -1055,19 +1604,25 @@ const app = {
                 const gridItem = document.createElement('div');
                 gridItem.className = 'alat-grid-item';
                 gridItem.innerHTML = `
-                    ${imgUrl ? `<img src="${imgUrl}" class="alat-grid-img">` : `<div class="alat-grid-img" style="display:flex; align-items:center; justify-content:center"><i class="ph ph-image" style="font-size: 3rem; color:var(--text-muted)"></i></div>`}
+                    <div style="position:relative;">
+                        ${imgUrl ? `<img src="${imgUrl}" class="alat-grid-img">` : `<div class="alat-grid-img" style="display:flex; align-items:center; justify-content:center"><i class="ph ph-image" style="font-size: 3rem; color:var(--text-muted)"></i></div>`}
+                        <span class="badge" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); font-size:0.7rem;">${katName}</span>
+                    </div>
                     <div style="font-size: 0.75rem; color: var(--text-muted); display:flex; justify-content:space-between; gap: 0.3rem; min-width: 0;">
-                        <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.kode_seri}</span>
-                        <span class="badge">${katName}</span>
+                        <span style="flex: 1; font-family:monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight:700;">${a.kode_seri}</span>
                     </div>
-                    <h4>${a.nama}</h4>
-                    <div style="font-size: 0.85rem; display: flex; justify-content: space-between; margin-top: auto;">
-                        <span>Stok: <b>${a.jumlah_tersedia}</b>/${a.jumlah_total}</span>
-                        <span style="color: ${a.kondisi === 'Baik' ? 'var(--success)' : 'var(--warning)'}">${a.kondisi}</span>
+                    <h4 style="margin: 0.2rem 0; font-size: 0.95rem;">${a.nama}</h4>
+                    <div style="margin-top:auto; padding-top:0.4rem;">
+                        ${stockMeterHtml}
                     </div>
-                    <div style="display:flex; gap: 0.5rem; margin-top: 0.5rem;">
-                        <button class="btn btn-outline btn-sm" style="flex:1" onclick='app.editAlat(${JSON.stringify(a)})'><i class="ph ph-pencil"></i></button>
-                        <button class="btn btn-outline btn-sm" style="flex:1; border-color: var(--danger); color: var(--danger);" onclick="app.hapusAlat('${a.id || a.newId}')"><i class="ph ph-trash"></i></button>
+                    <div style="font-size: 0.8rem; display: flex; justify-content: space-between; margin-top: 0.4rem; align-items:center;">
+                        <span style="font-size:0.75rem; color:var(--text-muted);">Kondisi:</span>
+                        <span style="color: ${kondisiColor}; font-weight: 600; font-size:0.8rem;">${a.kondisi}</span>
+                    </div>
+                    <div style="display:flex; gap: 0.4rem; margin-top: 0.6rem;">
+                        <button class="btn btn-outline btn-sm" style="flex:1" onclick='app.openCetakBarcodeModal(${JSON.stringify(a)})' title="Cetak Barcode / QR"><i class="ph ph-qr-code"></i></button>
+                        <button class="btn btn-outline btn-sm" style="flex:1" onclick='app.editAlat(${JSON.stringify(a)})' title="Edit"><i class="ph ph-pencil"></i></button>
+                        <button class="btn btn-outline btn-sm" style="flex:1; border-color: var(--danger); color: var(--danger);" onclick="app.hapusAlat('${a.id || a.newId}')" title="Hapus"><i class="ph ph-trash"></i></button>
                     </div>
                 `;
                 grid.appendChild(gridItem);
@@ -1093,8 +1648,10 @@ const app = {
     hapusAlat: async function (id) {
         if (!await this.showDialog('Hapus Alat', 'Apakah Anda yakin ingin menghapus alat ini permanen?', 'error')) return;
         this.showLoading('Menghapus alat...');
-        await db.stores.alat.removeItem(id);
-        await db.queueSyncTask('delete_alat', 'alat', { id: id, newId: id });
+        const item = await db.stores.alat.getItem(String(id));
+        await db.stores.alat.removeItem(String(id));
+        const payload = item ? { ...item, id: id, newId: id } : { id: id, newId: id };
+        await db.queueSyncTask('delete_alat', 'alat', payload);
         this.hideLoading();
         this.showToast('Alat berhasil dihapus', 'success');
         this.loadAlat();
@@ -1187,18 +1744,56 @@ const app = {
         document.getElementById('alat-foto-file-gallery')?.click();
     },
 
+    // Batas ukuran file mentah yang diterima dari input (sebelum dikompres).
+    // File di atas ini ditolak agar tidak membebani browser saat resize/encode.
+    MAX_FOTO_ALAT_RAW_BYTES: 8 * 1024 * 1024, // 8 MB
+    MAX_FOTO_ALAT_WIDTH: 1024, // lebar maksimum hasil kompresi
+
     handleFotoUpload: function (event) {
         const file = event.target.files[0];
         if (!file) return;
 
-        // Preview rendering
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            document.getElementById('foto-preview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+        if (!file.type || !file.type.startsWith('image/')) {
+            this.showToast('File harus berupa gambar.', 'error');
+            event.target.value = '';
+            return;
+        }
 
-            // If online, optionally upload to Backend right away or store base64 in local DB for later upload.
-            // For now, we will save base64 string directly for offline use.
-            document.getElementById('alat-foto-url').value = e.target.result;
+        if (file.size > this.MAX_FOTO_ALAT_RAW_BYTES) {
+            const maxMb = (this.MAX_FOTO_ALAT_RAW_BYTES / (1024 * 1024)).toFixed(0);
+            this.showToast(`Ukuran foto terlalu besar (maks ${maxMb} MB). Pilih foto lain atau kecilkan dulu.`, 'error');
+            event.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const imgEl = new Image();
+            imgEl.onload = () => {
+                // Resize & kompresi ke JPEG agar payload sync jauh lebih kecil,
+                // konsisten dengan penanganan foto profil (handleProfFotoUpload).
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const MAX_WIDTH = this.MAX_FOTO_ALAT_WIDTH;
+                let scaleSize = 1;
+                if (imgEl.width > MAX_WIDTH) scaleSize = MAX_WIDTH / imgEl.width;
+                canvas.width = imgEl.width * scaleSize;
+                canvas.height = imgEl.height * scaleSize;
+                ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                document.getElementById('foto-preview').innerHTML = `<img src="${dataUrl}" style="width:100%; height:100%; object-fit:cover;">`;
+                document.getElementById('alat-foto-url').value = dataUrl;
+            };
+            imgEl.onerror = () => {
+                this.showToast('Gagal membaca file gambar.', 'error');
+                event.target.value = '';
+            };
+            imgEl.src = evt.target.result;
+        };
+        reader.onerror = () => {
+            this.showToast('Gagal membaca file gambar.', 'error');
+            event.target.value = '';
         };
         reader.readAsDataURL(file);
     },
@@ -1255,6 +1850,177 @@ const app = {
         a.click();
     },
 
+    // --- Barcode & QR Code Sticker Printing
+    openCetakBarcodeModal: async function (selectedAlat = null) {
+        const rawAlat = await db.getAll('alat');
+        const alatList = this.getFilteredData(rawAlat);
+
+        const selectSingle = document.getElementById('barcode-single-tool-select');
+        const scopeSelect = document.getElementById('barcode-scope-select');
+        const singleWrapper = document.getElementById('barcode-single-select-wrapper');
+
+        if (selectSingle) {
+            selectSingle.innerHTML = '';
+            alatList.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id || a.newId;
+                opt.textContent = `${a.kode_seri} - ${a.nama}`;
+                selectSingle.appendChild(opt);
+            });
+        }
+
+        if (selectedAlat) {
+            const targetId = selectedAlat.id || selectedAlat.newId;
+            if (scopeSelect) scopeSelect.value = 'single';
+            if (singleWrapper) singleWrapper.classList.remove('hidden');
+            if (selectSingle) selectSingle.value = targetId;
+        } else {
+            if (scopeSelect) scopeSelect.value = 'all';
+            if (singleWrapper) singleWrapper.classList.add('hidden');
+        }
+
+        this.openModal('barcode-modal');
+        await this.renderBarcodePreview();
+    },
+
+    onBarcodeScopeChange: function () {
+        const scope = document.getElementById('barcode-scope-select')?.value || 'all';
+        const singleWrapper = document.getElementById('barcode-single-select-wrapper');
+        if (singleWrapper) {
+            if (scope === 'single') {
+                singleWrapper.classList.remove('hidden');
+            } else {
+                singleWrapper.classList.add('hidden');
+            }
+        }
+        this.renderBarcodePreview();
+    },
+
+    renderBarcodePreview: async function () {
+        const container = document.getElementById('barcode-preview-container');
+        const totalCountElem = document.getElementById('barcode-total-count');
+        if (!container) return;
+
+        container.innerHTML = '<div style="text-align:center; padding:2rem; color:#64748b;"><i class="ph ph-spinner" style="font-size:1.5rem; animation: spin 1s infinite linear;"></i> Memuat pratinjau stiker...</div>';
+
+        const rawAlat = await db.getAll('alat');
+        const filteredAlat = this.getFilteredData(rawAlat);
+        const jurusanList = await db.getAll('jurusan');
+        const jurusanMap = {};
+        jurusanList.forEach(j => {
+            jurusanMap[String(j.id || j.newId)] = j.nama || j.kode || 'UMUM';
+        });
+
+        const type = document.getElementById('barcode-type-select')?.value || 'barcode';
+        const scope = document.getElementById('barcode-scope-select')?.value || 'all';
+        const singleId = document.getElementById('barcode-single-tool-select')?.value;
+
+        let targetAlat = [];
+        if (scope === 'single') {
+            targetAlat = filteredAlat.filter(a => String(a.id || a.newId) === String(singleId));
+            if (targetAlat.length === 0 && filteredAlat.length > 0) targetAlat = [filteredAlat[0]];
+        } else {
+            targetAlat = filteredAlat;
+        }
+
+        if (totalCountElem) totalCountElem.textContent = targetAlat.length;
+
+        if (targetAlat.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:2rem; color:#64748b;">Tidak ada data alat untuk dicetak</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+
+        targetAlat.forEach((a, idx) => {
+            const card = document.createElement('div');
+            card.className = 'barcode-sticker-card';
+
+            const kodeText = String(a.kode_seri || a.id || a.newId || 'ALAT-000').trim();
+            const titleText = a.nama || 'Nama Alat';
+
+            const graphicWrapper = document.createElement('div');
+            graphicWrapper.className = 'barcode-sticker-graphic';
+
+            if (type === 'barcode') {
+                const svgElem = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svgElem.id = `barcode-svg-${idx}`;
+                graphicWrapper.appendChild(svgElem);
+                card.appendChild(graphicWrapper);
+
+                const codeElem = document.createElement('div');
+                codeElem.className = 'barcode-sticker-code';
+                codeElem.textContent = kodeText;
+                card.appendChild(codeElem);
+
+                const titleElem = document.createElement('div');
+                titleElem.className = 'barcode-sticker-title';
+                titleElem.textContent = titleText;
+                card.appendChild(titleElem);
+
+                container.appendChild(card);
+
+                // Render with JsBarcode
+                try {
+                    if (typeof JsBarcode !== 'undefined') {
+                        JsBarcode(svgElem, kodeText, {
+                            format: "CODE128",
+                            width: 1.5,
+                            height: 38,
+                            displayValue: false, // Ditampilkan terpisah di barcode-sticker-code
+                            margin: 2
+                        });
+                    }
+                } catch (err) {
+                    console.warn('JsBarcode error for text:', kodeText, err);
+                }
+            } else {
+                // QR Code
+                const qrDiv = document.createElement('div');
+                qrDiv.id = `qrcode-div-${idx}`;
+                graphicWrapper.appendChild(qrDiv);
+                card.appendChild(graphicWrapper);
+
+                const codeElem = document.createElement('div');
+                codeElem.className = 'barcode-sticker-code';
+                codeElem.textContent = kodeText;
+                card.appendChild(codeElem);
+
+                const titleElem = document.createElement('div');
+                titleElem.className = 'barcode-sticker-title';
+                titleElem.textContent = titleText;
+                card.appendChild(titleElem);
+
+                container.appendChild(card);
+
+                // Render with QRCode.js
+                try {
+                    if (typeof QRCode !== 'undefined') {
+                        new QRCode(qrDiv, {
+                            text: kodeText,
+                            width: 64,
+                            height: 64,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+                    }
+                } catch (err) {
+                    console.warn('QRCode error for text:', kodeText, err);
+                }
+            }
+        });
+    },
+
+    printBarcodeLabels: function () {
+        const previewContainer = document.getElementById('barcode-preview-container');
+        const printArea = document.getElementById('print-barcode-area');
+        if (!previewContainer || !printArea) return;
+
+        printArea.innerHTML = previewContainer.innerHTML;
+        window.print();
+    },
+
     // --- Peminjaman Logic
     initPeminjaman: function () {
         this.state.cart = [];
@@ -1302,7 +2068,7 @@ const app = {
                 </td>
                 <td>
                     <span class="badge badge-outline clickable-badge" 
-                           onclick="app.showPeminjamanDetail('${db.getItemId(p)}')"
+                           onclick='app.showPeminjamanDetail(${JSON.stringify(p)})'
                            style="cursor:pointer; border-color:var(--primary); color:var(--primary)">
                         ${items.length} Item <i class="ph ph-eye"></i>
                     </span>
@@ -1310,13 +2076,268 @@ const app = {
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-sm btn-outline" onclick='app.cetakReceipt(${JSON.stringify(p)})' title="Cetak Struk"><i class="ph ph-printer"></i></button>
-                        <button class="btn btn-sm btn-outline" onclick="app.editPeminjaman('${db.getItemId(p)}')" title="Edit Transaksi"><i class="ph ph-pencil"></i></button>
-                        <button class="btn btn-sm btn-primary" onclick="app.kembalikanAlat('${db.getItemId(p)}')" title="Kembalikan"><i class="ph ph-arrow-u-up-left"></i></button>
+                        <button class="btn btn-sm btn-outline" onclick='app.editPeminjaman(${JSON.stringify(p)})' title="Edit Transaksi"><i class="ph ph-pencil"></i></button>
+                        <button class="btn btn-sm btn-primary" onclick='app.kembalikanAlat(${JSON.stringify(p)})' title="Kembalikan"><i class="ph ph-arrow-u-up-left"></i></button>
                     </div>
                 </td>
             `;
             tbody.appendChild(tr);
         });
+    },
+
+    // --- Audio Beep Feedback (Web Audio API) ---
+    playBeep: function () {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.15);
+            }
+        } catch (e) { }
+
+        if (navigator.vibrate) {
+            try { navigator.vibrate(100); } catch (e) { }
+        }
+    },
+
+    // --- Barcode & QR Code Processing Logic ---
+    handleScanResult: async function (scannedText) {
+        if (!scannedText) return;
+        const code = String(scannedText).trim();
+        if (!code) return;
+
+        const rawAlat = await db.getAll('alat');
+        const filteredAlat = this.getFilteredData(rawAlat);
+
+        // Find tool by kode_seri or id
+        const targetAlat = filteredAlat.find(a => {
+            const ks = String(a.kode_seri || '').trim().toLowerCase();
+            const aid = String(a.id || a.newId || '').trim().toLowerCase();
+            const searchKey = code.toLowerCase();
+            return ks === searchKey || aid === searchKey;
+        });
+
+        if (!targetAlat) {
+            this.showToast(`Alat dengan kode "${code}" tidak ditemukan!`, 'error');
+            const statusBox = document.getElementById('scanner-status-box');
+            if (statusBox) {
+                statusBox.innerHTML = `<span style="color:var(--danger);"><i class="ph ph-warning"></i> Kode "${code}" tidak ditemukan dalam sistem</span>`;
+            }
+            return;
+        }
+
+        // Check stock availability
+        const maxStok = Number(targetAlat.jumlah_tersedia || 0);
+        if (maxStok <= 0) {
+            this.showToast(`Stok alat "${targetAlat.nama}" sedang habis (0)!`, 'warning');
+            const statusBox = document.getElementById('scanner-status-box');
+            if (statusBox) {
+                statusBox.innerHTML = `<span style="color:var(--warning);"><i class="ph ph-warning"></i> Stok "${targetAlat.nama}" sedang habis!</span>`;
+            }
+            return;
+        }
+
+        // Add to active cart
+        const cartTarget = this.state.isEditingPeminjaman ? this.state.editCart : this.state.cart;
+        if (!cartTarget) {
+            if (this.state.isEditingPeminjaman) this.state.editCart = [];
+            else this.state.cart = [];
+        }
+        const activeCart = this.state.isEditingPeminjaman ? this.state.editCart : this.state.cart;
+        const targetId = db.getItemId(targetAlat);
+        const existing = activeCart.find(item => db.getItemId(item) === targetId);
+
+        if (existing) {
+            if (existing.qty < maxStok) {
+                existing.qty++;
+            } else {
+                this.showToast(`Jumlah alat "${targetAlat.nama}" mencapai batas stok (${maxStok})!`, 'warning');
+                return;
+            }
+        } else {
+            activeCart.push({ ...targetAlat, qty: 1 });
+        }
+
+        this.playBeep();
+
+        if (this.state.isEditingPeminjaman) {
+            this.renderEditCart();
+        } else {
+            this.renderCart();
+        }
+
+        this.showToast(`✓ Ditambahkan: ${targetAlat.nama}`, 'success');
+
+        // Update Scanner Modal UI if open
+        const statusBox = document.getElementById('scanner-status-box');
+        if (statusBox) {
+            statusBox.innerHTML = `<span style="color:var(--success);"><i class="ph ph-check-circle"></i> Berhasil di-scan: <b>${targetAlat.nama}</b> (${targetAlat.kode_seri})</span>`;
+        }
+
+        const previewContainer = document.getElementById('scanner-scanned-preview');
+        const recentList = document.getElementById('scanner-recent-list');
+        const countBadge = document.getElementById('scanner-count-badge');
+        if (previewContainer && recentList) {
+            previewContainer.style.display = 'block';
+            const totalItemCount = activeCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+            if (countBadge) countBadge.textContent = `${totalItemCount} item`;
+
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = 'padding: 0.25rem 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.08);';
+            itemDiv.innerHTML = `<span><b>${targetAlat.nama}</b> <small style="color:var(--text-muted);">(${targetAlat.kode_seri})</small></span> <span class="badge bg-indigo" style="font-size:0.7rem;">x${existing ? existing.qty : 1}</span>`;
+            recentList.prepend(itemDiv);
+        }
+
+        // If continuous scan is unchecked, automatically close modal
+        const continuousCheck = document.getElementById('scan-continuous-check');
+        if (continuousCheck && !continuousCheck.checked) {
+            setTimeout(() => this.closeScannerModal(), 700);
+        }
+    },
+
+    // --- Hardware Barcode Gun Scanner Key Handler ---
+    handleBarcodeGunKey: function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const input = document.getElementById('barcode-gun-input');
+            if (input && input.value.trim()) {
+                const code = input.value.trim();
+                input.value = '';
+                this.handleScanResult(code);
+            }
+        }
+    },
+
+    // --- Live Camera Scanner Modal Logic (html5-qrcode) ---
+    openScannerModal: async function (isEdit = false) {
+        this.state.isEditingPeminjaman = isEdit;
+        this.openModal('scanner-modal');
+
+        const statusBox = document.getElementById('scanner-status-box');
+        if (statusBox) {
+            statusBox.innerHTML = '<i class="ph ph-crosshair" style="color:var(--accent);"></i> Menyiapkan kamera scanner...';
+        }
+        const recentList = document.getElementById('scanner-recent-list');
+        if (recentList) recentList.innerHTML = '';
+        const previewContainer = document.getElementById('scanner-scanned-preview');
+        if (previewContainer) previewContainer.style.display = 'none';
+
+        if (typeof Html5Qrcode === 'undefined') {
+            this.showToast('Library pemindai kamera sedang dimuat...', 'warning');
+            return;
+        }
+
+        try {
+            if (this.html5QrCodeInstance) {
+                try { await this.html5QrCodeInstance.stop(); } catch (e) { }
+            }
+
+            this.html5QrCodeInstance = new Html5Qrcode("qr-reader");
+
+            const cameras = await Html5Qrcode.getCameras();
+            const select = document.getElementById('camera-select');
+            if (select) {
+                select.innerHTML = '';
+                if (cameras && cameras.length > 0) {
+                    cameras.forEach(cam => {
+                        const opt = document.createElement('option');
+                        opt.value = cam.id;
+                        opt.textContent = cam.label || `Kamera ${cam.id}`;
+                        select.appendChild(opt);
+                    });
+
+                    // Prefer back / environment camera
+                    const backCam = cameras.find(c => /back|rear|environment|belakang/i.test(c.label));
+                    if (backCam) {
+                        select.value = backCam.id;
+                    }
+                } else {
+                    select.innerHTML = '<option value="">Tidak ada kamera terdeteksi</option>';
+                }
+            }
+
+            const chosenCameraId = select && select.value ? select.value : { facingMode: "environment" };
+            await this.startCameraScanner(chosenCameraId);
+        } catch (err) {
+            console.error("Camera scan init error:", err);
+            if (statusBox) {
+                statusBox.innerHTML = `<span style="color:var(--danger);"><i class="ph ph-warning-circle"></i> Izin kamera ditolak atau kamera tidak tersedia</span>`;
+            }
+            this.showToast('Gagal mengakses kamera: ' + (err.message || err), 'error');
+        }
+    },
+
+    startCameraScanner: async function (cameraIdOrConfig) {
+        if (!this.html5QrCodeInstance) return;
+
+        let lastScannedTime = 0;
+        let lastScannedCode = '';
+
+        const config = {
+            fps: 15,
+            qrbox: { width: 250, height: 160 },
+            aspectRatio: 1.333334,
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            }
+        };
+
+        const onScanSuccess = (decodedText) => {
+            const now = Date.now();
+            // Prevent duplicate triggers within 1.5 seconds for the same code
+            if (decodedText === lastScannedCode && (now - lastScannedTime) < 1500) {
+                return;
+            }
+            lastScannedTime = now;
+            lastScannedCode = decodedText;
+            this.handleScanResult(decodedText);
+        };
+
+        try {
+            await this.html5QrCodeInstance.start(
+                cameraIdOrConfig,
+                config,
+                onScanSuccess,
+                () => {} // Silent on scan failure frame
+            );
+            const statusBox = document.getElementById('scanner-status-box');
+            if (statusBox) {
+                statusBox.innerHTML = '<i class="ph ph-crosshair" style="color:var(--accent);"></i> Arahkan kamera ke Barcode 1D / QR Code alat';
+            }
+        } catch (e) {
+            console.error("Start scanner error:", e);
+        }
+    },
+
+    changeCamera: async function () {
+        const select = document.getElementById('camera-select');
+        if (!select || !select.value || !this.html5QrCodeInstance) return;
+
+        try {
+            await this.html5QrCodeInstance.stop();
+            await this.startCameraScanner(select.value);
+        } catch (e) {
+            console.error("Change camera error:", e);
+        }
+    },
+
+    closeScannerModal: async function () {
+        if (this.html5QrCodeInstance) {
+            try {
+                await this.html5QrCodeInstance.stop();
+            } catch (e) { }
+        }
+        this.closeModal('scanner-modal');
     },
 
     openPilihAlatModal: async function () {
@@ -1433,7 +2454,8 @@ const app = {
         const nomorTrx = `${kodeJur}-${tahunSaatIni}-${acak}`;
 
         const payload = {
-            newId: 'PEM-' + Date.now(),
+            id: nomorTrx,
+            newId: nomorTrx,
             nomor_peminjaman: nomorTrx,
             nama_peminjam: document.getElementById('pem-nama').value,
             nomor_hp: document.getElementById('pem-hp').value,
@@ -1452,13 +2474,13 @@ const app = {
             jurusan_id: this.state.user.jurusan_id,
             petugas: this.state.user.full_name,
             created_by: this.state.user.id,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString().split('T')[0]
         };
 
         this.showLoading('Memproses...');
 
         // Save transaction
-        await db.stores.peminjaman.setItem(payload.newId, payload);
+        await db.stores.peminjaman.setItem(nomorTrx, payload);
         await db.queueSyncTask('insert_peminjaman', 'peminjaman', payload);
 
         // Update stock
@@ -1500,6 +2522,8 @@ const app = {
         const nama = p.nama_peminjam || 'Nama Peminjam';
         const kelas = p.kelas_unit || 'Kelas';
         const timestamp = this.formatDate(p.created_at);
+        const tglPinjam = this.formatDate(p.tanggal_pinjam || p.created_at);
+        const tglEstimasi = p.tanggal_kembali_estimasi ? this.formatDate(p.tanggal_kembali_estimasi) : '-';
 
         let petugasName = p.petugas;
         if (!petugasName && p.created_by) {
@@ -1549,7 +2573,7 @@ const app = {
                 .divider { border-top: 1px dashed #000; margin: 5px 0; }
                 table { width: 100%; border-collapse: collapse; margin: 5px 0; }
                 th, td { text-align: left; padding: 1px 0; }
-                .footer { font-size: 10px; margin-top: 10px; text-align: center; }
+                .footer { font-size: 10px; margin-top: 8px; text-align: center; }
             </style>
             </head><body>
                 <div class="center">
@@ -1561,14 +2585,16 @@ const app = {
                 <p>TRX: <b>${p.nomor_peminjaman}</b></p>
                 <p>Peminjam: <b>${nama}</b></p>
                 <p>Kelas: ${kelas}</p>
-                <p>Waktu: ${timestamp}</p>
+                <p>Waktu Transaksi: ${timestamp}</p>
                 <div class="divider"></div>
                 <table>
                     <thead><tr><th>Item</th><th style="text-align:right">Qty</th></tr></thead>
                     <tbody>${cartHtml || '<tr><td colspan="2">No items</td></tr>'}</tbody>
                 </table>
                 <div class="divider"></div>
-                <p>Petugas: ${petugas}</p>
+                <p>Tgl Pinjam       : <b>${tglPinjam}</b></p>
+                <p>Tgl Kembali      : <b>${tglEstimasi}</b></p>
+                <p>Petugas          : ${petugas}</p>
                 <div class="divider"></div>
                 <div class="center" style="margin-top: 10px;">
                     <img src="https://bwipjs-api.metafloor.com/?bcid=code128&text=${p.nomor_peminjaman}&scale=2&height=10&includetext" alt="Barcode" style="max-width: 100%; height: auto; max-height: 40px;"/>
@@ -1588,19 +2614,78 @@ const app = {
     },
 
     // --- Riwayat Peminjaman
+    setRiwayatFilterStatus: function (status) {
+        this.state.riwayatStatusFilter = status;
+        const container = document.getElementById('riwayat-tabs');
+        if (container) {
+            const btns = container.querySelectorAll('.quick-tab-pill');
+            btns.forEach(b => b.classList.remove('active'));
+            const targetBtn = Array.from(btns).find(b => {
+                const attr = b.getAttribute('onclick');
+                return attr && attr.includes(`'${status}'`);
+            });
+            if (targetBtn) targetBtn.classList.add('active');
+        }
+        this.loadRiwayat();
+    },
+
+    toggleRiwayatView: function () {
+        const tableView = document.getElementById('riwayat-table-view');
+        const timelineView = document.getElementById('riwayat-timeline-view');
+        const btn = document.getElementById('btn-riwayat-timeline');
+        if (!tableView || !timelineView) return;
+
+        const isTimeline = tableView.classList.contains('hidden');
+        if (isTimeline) {
+            tableView.classList.remove('hidden');
+            timelineView.classList.add('hidden');
+            if (btn) btn.innerHTML = '<i class="ph ph-list-bullets"></i> Timeline';
+        } else {
+            tableView.classList.add('hidden');
+            timelineView.classList.remove('hidden');
+            if (btn) btn.innerHTML = '<i class="ph ph-table"></i> Tabel';
+            this.renderRiwayatTimeline();
+        }
+    },
+
     loadRiwayat: async function () {
         const rawData = this.getFilteredData(await db.getAll('peminjaman'));
-        const data = rawData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        // Calculate status counts for quick tabs
+        const countAll = rawData.length;
+        const countDipinjam = rawData.filter(p => p.status && p.status.trim().toUpperCase() === 'DIPINJAM').length;
+        const countKembali = rawData.filter(p => p.status && p.status.trim().toUpperCase() === 'KEMBALI').length;
+        const countOverdue = rawData.filter(p => p.status && p.status.trim().toUpperCase() === 'DIPINJAM' && this.isOverdue(p.tanggal_kembali_estimasi)).length;
+
+        const bAll = document.getElementById('riwayat-badge-all');
+        const bDipinjam = document.getElementById('riwayat-badge-dipinjam');
+        const bKembali = document.getElementById('riwayat-badge-kembali');
+        const bOverdue = document.getElementById('riwayat-badge-overdue');
+        if (bAll) bAll.textContent = countAll;
+        if (bDipinjam) bDipinjam.textContent = countDipinjam;
+        if (bKembali) bKembali.textContent = countKembali;
+        if (bOverdue) bOverdue.textContent = countOverdue;
+
+        let filtered = rawData;
+        if (this.state.riwayatStatusFilter === 'DIPINJAM') {
+            filtered = filtered.filter(p => p.status && p.status.trim().toUpperCase() === 'DIPINJAM');
+        } else if (this.state.riwayatStatusFilter === 'KEMBALI') {
+            filtered = filtered.filter(p => p.status && p.status.trim().toUpperCase() === 'KEMBALI');
+        } else if (this.state.riwayatStatusFilter === 'OVERDUE') {
+            filtered = filtered.filter(p => p.status && p.status.trim().toUpperCase() === 'DIPINJAM' && this.isOverdue(p.tanggal_kembali_estimasi));
+        }
+
+        const data = filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         const tbody = document.querySelector('#table-riwayat tbody');
         tbody.innerHTML = '';
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem;">Belum ada riwayat peminjaman</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color:var(--text-muted);"><i class="ph ph-magnifying-glass" style="font-size:1.5rem; display:block; margin-bottom:0.5rem; opacity:0.5;"></i>Tidak ada riwayat peminjaman yang cocok</td></tr>';
             return;
         }
 
         data.forEach(p => {
-            let statusBadge = p.status === 'DIPINJAM' ? '<span class="badge" style="background:var(--warning); color:#000;">DIPINJAM</span>' : '<span class="badge" style="background:var(--success); color:#fff;">KEMBALI</span>';
+            let statusBadge = p.status === 'DIPINJAM' ? '<span class="badge" style="background:rgba(245,158,11,0.2); color:#fbbf24; border:1px solid rgba(245,158,11,0.35); font-size:0.75rem;">DIPINJAM</span>' : '<span class="badge" style="background:rgba(16,185,129,0.2); color:#34d399; border:1px solid rgba(16,185,129,0.35); font-size:0.75rem;">KEMBALI</span>';
             const tr = document.createElement('tr');
             tr.dataset.status = p.status || '';
             tr.dataset.tanggalPinjam = (p.tanggal_pinjam || p.created_at || '').split('T')[0];
@@ -1608,45 +2693,54 @@ const app = {
             // Format Dates
             const pinjamDate = this.formatDate(p.created_at);
             const kembaliDate = p.tanggal_kembali_aktual ? this.formatDate(p.tanggal_kembali_aktual) : '-';
-            const note = p.Keterangan || p.keterangan || '-';
+            const note = p.Keterangan || p.keterangan || '';
             const items = JSON.parse(p.items || '[]');
 
             let editButtonHtml = '';
             let overdueBadge = '';
             if (p.status === 'DIPINJAM') {
                 editButtonHtml = `
-                    <button class="btn-icon" style="font-size: 1.1rem; padding: 0.2rem;" onclick="app.editPeminjaman('${p.id || p.newId}')" title="Edit Riwayat">
+                    <button class="btn-icon" onclick='app.editPeminjaman(${JSON.stringify(p)})' title="Edit Transaksi">
                         <i class="ph ph-pencil" style="color:var(--primary)"></i>
                     </button>
                 `;
                 
                 if (this.isOverdue(p.tanggal_kembali_estimasi)) {
-                    overdueBadge = '<span class="badge bg-danger" style="margin-top:0.2rem; font-size:0.75rem;">TERLAMBAT</span>';
-                    tr.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
+                    overdueBadge = '<span class="badge bg-danger" style="margin-top:0.2rem; font-size:0.7rem; padding:0.15rem 0.4rem;">TERLAMBAT</span>';
+                    tr.style.backgroundColor = 'rgba(239, 68, 68, 0.04)';
                 }
             }
 
             tr.innerHTML = `
-                <td><b>${p.nomor_peminjaman}</b></td>
-                <td><b>${p.nama_peminjam}</b><br><small>${p.kelas_unit} • ${p.nomor_hp}</small></td>
+                <td><b style="font-family:monospace; font-size:0.9rem;">${p.nomor_peminjaman}</b></td>
                 <td>
-                    <b>Pinjam:</b> ${pinjamDate}<br>
-                    <small>Kembali: ${kembaliDate}</small><br>
+                    <div style="font-weight:700;">${p.nama_peminjam}</div>
+                    <small style="color:var(--text-muted); font-size:0.78rem;">${p.kelas_unit || '-'} • ${p.nomor_hp || '-'}</small>
+                </td>
+                <td>
+                    <div style="font-size:0.82rem;"><b>Pinjam:</b> ${pinjamDate}</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);"><b>Kembali:</b> ${kembaliDate}</div>
                     ${overdueBadge}
                 </td>
                 <td>
                     <span class="badge clickable-badge" 
-                          onclick="app.showPeminjamanDetail('${db.getItemId(p)}')"
-                          style="cursor:pointer; background:var(--primary-light); color:var(--primary); padding: 0.4rem 0.6rem;">
-                        ${items.length} Alat <i class="ph ph-eye"></i>
-                    </span><br>
-                    <small style="opacity:0.7">${note}</small>
+                          onclick='app.showPeminjamanDetail(${JSON.stringify(p)})'
+                          style="cursor:pointer; background:rgba(99,102,241,0.15); color:var(--primary-light); padding: 0.35rem 0.6rem; font-size:0.78rem;" title="Lihat Rincian Alat">
+                        ${items.length} Item Alat <i class="ph ph-eye"></i>
+                    </span>
+                    ${note ? `<br><small style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">${note}</small>` : ''}
                 </td>
+                <td>${statusBadge}</td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:0.5rem; justify-content:flex-start;">
-                        ${statusBadge}
+                    <div style="display:flex; align-items:center; gap:0.3rem;">
+                        <button class="btn-icon" onclick='app.cetakReceipt(${JSON.stringify(p)})' title="Cetak Struk Thermal">
+                            <i class="ph ph-printer" style="color:var(--accent)"></i>
+                        </button>
+                        <button class="btn-icon" onclick='app.showPeminjamanDetail(${JSON.stringify(p)})' title="Rincian Transaksi">
+                            <i class="ph ph-info" style="color:var(--primary-light)"></i>
+                        </button>
                         ${editButtonHtml}
-                        <button class="btn-icon" style="font-size: 1.1rem; padding: 0.2rem;" onclick="app.hapusPeminjaman('${db.getItemId(p)}')" title="Hapus Riwayat">
+                        <button class="btn-icon" onclick='app.hapusPeminjaman(${JSON.stringify(p)})' title="Hapus Riwayat">
                             <i class="ph ph-trash" style="color:var(--danger)"></i>
                         </button>
                     </div>
@@ -1656,16 +2750,42 @@ const app = {
         });
     },
 
-    hapusPeminjaman: async function (id) {
+    hapusPeminjaman: async function (idOrObj) {
         const diizinkan = await this.showDialog('Hapus Riwayat', 'Apakah Anda yakin ingin menghapus data riwayat ini permanen?', 'confirm');
         if (!diizinkan) return;
 
         this.showLoading('Menghapus...');
-        let p = await db.stores.peminjaman.getItem(id);
-        if (!p) {
-            const allP = await db.getAll('peminjaman');
-            p = allP.find(item => db.getItemId(item) === id || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(id).trim().toLowerCase()));
+        let p = null;
+        let id = '';
+        if (typeof idOrObj === 'object' && idOrObj !== null) {
+            p = idOrObj;
+            id = db.getItemId(p) || p.nomor_peminjaman || p.id || p.newId;
+        } else {
+            id = String(idOrObj || '');
+            const targetId = id.trim().toLowerCase();
+            p = await db.stores.peminjaman.getItem(id);
+            if (!p) {
+                const allP = await db.getAll('peminjaman');
+                p = allP.find(item => {
+                    const itemId = String(db.getItemId(item) || '').trim().toLowerCase();
+                    const nomor = String(item.nomor_peminjaman || item.Nomor_Peminjaman || '').trim().toLowerCase();
+                    const itemNewId = String(item.newId || '').trim().toLowerCase();
+                    const itemRealId = String(item.id || '').trim().toLowerCase();
+                    return itemId === targetId || nomor === targetId || itemNewId === targetId || itemRealId === targetId;
+                });
+            }
+            if (!p) {
+                const queue = await db.getAll('syncQueue');
+                const task = queue.find(t => t.storeName === 'peminjaman' && t.payload && (
+                    String(db.getItemId(t.payload) || '').toLowerCase() === targetId ||
+                    String(t.payload.newId || '').toLowerCase() === targetId ||
+                    String(t.payload.id || '').toLowerCase() === targetId ||
+                    String(t.payload.nomor_peminjaman || '').toLowerCase() === targetId
+                ));
+                if (task) p = task.payload;
+            }
         }
+
         if (!p) {
             this.hideLoading();
             return this.showToast('Data tidak ditemukan', 'error');
@@ -1688,9 +2808,15 @@ const app = {
             } catch (e) { }
         }
 
-        const realId = db.getItemId(p) || id;
+        const realId = db.getItemId(p) || p.nomor_peminjaman || p.id || p.newId || id;
         await db.stores.peminjaman.removeItem(realId);
-        await db.queueSyncTask('delete_peminjaman', 'peminjaman', { id: realId, newId: realId });
+        if (p.id) await db.stores.peminjaman.removeItem(p.id);
+        if (p.newId) await db.stores.peminjaman.removeItem(p.newId);
+        if (p.nomor_peminjaman) await db.stores.peminjaman.removeItem(p.nomor_peminjaman);
+
+        // Sertakan seluruh payload (nomor_peminjaman, id, newId) agar backend dijamin menemukan baris di spreadsheet
+        const deletePayload = { ...p, id: realId, newId: realId, nomor_peminjaman: p.nomor_peminjaman || realId };
+        await db.queueSyncTask('delete_peminjaman', 'peminjaman', deletePayload);
 
         this.hideLoading();
         this.showToast('Riwayat berhasil dihapus', 'success');
@@ -1700,15 +2826,41 @@ const app = {
         db.syncToServer();
     },
 
-    editPeminjaman: async function (id) {
-        let p = await db.stores.peminjaman.getItem(id);
-        if (!p) {
-            const allP = await db.getAll('peminjaman');
-            p = allP.find(item => db.getItemId(item) === id || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(id).trim().toLowerCase()));
+    editPeminjaman: async function (idOrObj) {
+        let p = null;
+        let id = '';
+        if (typeof idOrObj === 'object' && idOrObj !== null) {
+            p = idOrObj;
+            id = db.getItemId(p) || p.nomor_peminjaman || p.id || p.newId;
+        } else {
+            id = String(idOrObj || '');
+            const targetId = id.trim().toLowerCase();
+            p = await db.stores.peminjaman.getItem(id);
+            if (!p) {
+                const allP = await db.getAll('peminjaman');
+                p = allP.find(item => {
+                    const itemId = String(db.getItemId(item) || '').trim().toLowerCase();
+                    const nomor = String(item.nomor_peminjaman || item.Nomor_Peminjaman || '').trim().toLowerCase();
+                    const itemNewId = String(item.newId || '').trim().toLowerCase();
+                    const itemRealId = String(item.id || '').trim().toLowerCase();
+                    return itemId === targetId || nomor === targetId || itemNewId === targetId || itemRealId === targetId;
+                });
+            }
+            if (!p) {
+                const queue = await db.getAll('syncQueue');
+                const task = queue.find(t => t.storeName === 'peminjaman' && t.payload && (
+                    String(db.getItemId(t.payload) || '').toLowerCase() === targetId ||
+                    String(t.payload.newId || '').toLowerCase() === targetId ||
+                    String(t.payload.id || '').toLowerCase() === targetId ||
+                    String(t.payload.nomor_peminjaman || '').toLowerCase() === targetId
+                ));
+                if (task) p = task.payload;
+            }
         }
         if (!p) return this.showToast('Data peminjaman tidak ditemukan', 'error');
 
-        document.getElementById('edit-pem-id').value = id;
+        const resolvedId = db.getItemId(p) || p.nomor_peminjaman || p.id || p.newId || id;
+        document.getElementById('edit-pem-id').value = resolvedId;
         document.getElementById('edit-pem-nama').value = p.nama_peminjam || '';
         document.getElementById('edit-pem-hp').value = p.nomor_hp || '';
         document.getElementById('edit-pem-kelas').value = p.kelas_unit || '';
@@ -1842,6 +2994,15 @@ const app = {
             jumlah_tersedia: i.jumlah_tersedia
         })));
 
+        // Pastikan format tanggal bersih yyyy-mm-dd
+        if (p.tanggal_pinjam && p.tanggal_pinjam.includes('T')) p.tanggal_pinjam = p.tanggal_pinjam.split('T')[0];
+        if (p.tanggal_kembali_estimasi && p.tanggal_kembali_estimasi.includes('T')) p.tanggal_kembali_estimasi = p.tanggal_kembali_estimasi.split('T')[0];
+        if (p.created_at && p.created_at.includes('T')) p.created_at = p.created_at.split('T')[0];
+
+        p.id = p.id || id;
+        p.newId = p.newId || id;
+        p.nomor_peminjaman = p.nomor_peminjaman || id;
+
         await db.stores.peminjaman.setItem(id, p);
         await db.queueSyncTask('update_peminjaman', 'peminjaman', p);
 
@@ -1857,15 +3018,40 @@ const app = {
         db.syncToServer();
     },
 
-    kembalikanAlat: async function (peminjamanId) {
+    kembalikanAlat: async function (idOrObj) {
         const tanya = await this.showDialog('Kembalikan Alat', 'Tandai alat ini sebagai sudah selesai dikembalikan?', 'confirm');
         if (!tanya) return;
 
         this.showLoading('Memproses...');
-        let p = await db.stores.peminjaman.getItem(peminjamanId);
-        if (!p) {
-            const allP = await db.getAll('peminjaman');
-            p = allP.find(item => db.getItemId(item) === peminjamanId || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(peminjamanId).trim().toLowerCase()));
+        let p = null;
+        let peminjamanId = '';
+        if (typeof idOrObj === 'object' && idOrObj !== null) {
+            p = idOrObj;
+            peminjamanId = db.getItemId(p) || p.nomor_peminjaman || p.id || p.newId;
+        } else {
+            peminjamanId = String(idOrObj || '');
+            const targetId = peminjamanId.trim().toLowerCase();
+            p = await db.stores.peminjaman.getItem(peminjamanId);
+            if (!p) {
+                const allP = await db.getAll('peminjaman');
+                p = allP.find(item => {
+                    const itemId = String(db.getItemId(item) || '').trim().toLowerCase();
+                    const nomor = String(item.nomor_peminjaman || item.Nomor_Peminjaman || '').trim().toLowerCase();
+                    const itemNewId = String(item.newId || '').trim().toLowerCase();
+                    const itemRealId = String(item.id || '').trim().toLowerCase();
+                    return itemId === targetId || nomor === targetId || itemNewId === targetId || itemRealId === targetId;
+                });
+            }
+            if (!p) {
+                const queue = await db.getAll('syncQueue');
+                const task = queue.find(t => t.storeName === 'peminjaman' && t.payload && (
+                    String(db.getItemId(t.payload) || '').toLowerCase() === targetId ||
+                    String(t.payload.newId || '').toLowerCase() === targetId ||
+                    String(t.payload.id || '').toLowerCase() === targetId ||
+                    String(t.payload.nomor_peminjaman || '').toLowerCase() === targetId
+                ));
+                if (task) p = task.payload;
+            }
         }
         if (!p) {
             this.hideLoading();
@@ -1875,7 +3061,16 @@ const app = {
         p.status = 'KEMBALI';
         p.tanggal_kembali_aktual = new Date().toISOString().split('T')[0];
 
-        const realId = db.getItemId(p) || peminjamanId;
+        // Pastikan semua field tanggal berformat bersih yyyy-mm-dd
+        if (p.tanggal_pinjam && p.tanggal_pinjam.includes('T')) p.tanggal_pinjam = p.tanggal_pinjam.split('T')[0];
+        if (p.tanggal_kembali_estimasi && p.tanggal_kembali_estimasi.includes('T')) p.tanggal_kembali_estimasi = p.tanggal_kembali_estimasi.split('T')[0];
+        if (p.created_at && p.created_at.includes('T')) p.created_at = p.created_at.split('T')[0];
+
+        const realId = db.getItemId(p) || p.nomor_peminjaman || p.newId || peminjamanId;
+        p.id = p.id || realId;
+        p.newId = p.newId || realId;
+        p.nomor_peminjaman = p.nomor_peminjaman || realId;
+
         await db.stores.peminjaman.setItem(realId, p);
         await db.queueSyncTask('update_peminjaman', 'peminjaman', p);
 
@@ -2156,12 +3351,33 @@ const app = {
         }
     },
 
-    showPeminjamanDetail: async function (id) {
-        let p = await db.stores.peminjaman.getItem(id);
-        if (!p) {
-            // Fallback: search across all locally stored transactions in memory
-            const allP = await db.getAll('peminjaman');
-            p = allP.find(item => db.getItemId(item) === id || (item.nomor_peminjaman && String(item.nomor_peminjaman).trim().toLowerCase() === String(id).trim().toLowerCase()));
+    showPeminjamanDetail: async function (idOrObj) {
+        let p = null;
+        if (typeof idOrObj === 'object' && idOrObj !== null) {
+            p = idOrObj;
+        } else {
+            const targetId = String(idOrObj || '').trim().toLowerCase();
+            p = await db.stores.peminjaman.getItem(String(idOrObj));
+            if (!p) {
+                const allP = await db.getAll('peminjaman');
+                p = allP.find(item => {
+                    const itemId = String(db.getItemId(item) || '').trim().toLowerCase();
+                    const nomor = String(item.nomor_peminjaman || item.Nomor_Peminjaman || '').trim().toLowerCase();
+                    const itemNewId = String(item.newId || '').trim().toLowerCase();
+                    const itemRealId = String(item.id || '').trim().toLowerCase();
+                    return itemId === targetId || nomor === targetId || itemNewId === targetId || itemRealId === targetId;
+                });
+            }
+            if (!p) {
+                const queue = await db.getAll('syncQueue');
+                const task = queue.find(t => t.storeName === 'peminjaman' && t.payload && (
+                    String(db.getItemId(t.payload) || '').toLowerCase() === targetId ||
+                    String(t.payload.newId || '').toLowerCase() === targetId ||
+                    String(t.payload.id || '').toLowerCase() === targetId ||
+                    String(t.payload.nomor_peminjaman || '').toLowerCase() === targetId
+                ));
+                if (task) p = task.payload;
+            }
         }
         if (!p) return this.showToast('Data tidak ditemukan', 'error');
 
@@ -2235,9 +3451,22 @@ const app = {
         }
 
         this.openModal('detail-modal');
+    },    // --- Bahan Praktik Logic
+    setBahanFilterStatus: function (status) {
+        this.state.bahanStatusFilter = status;
+        const container = document.getElementById('bahan-tabs');
+        if (container) {
+            const btns = container.querySelectorAll('.quick-tab-pill');
+            btns.forEach(b => b.classList.remove('active'));
+            const targetBtn = Array.from(btns).find(b => {
+                const attr = b.getAttribute('onclick');
+                return attr && attr.includes(`'${status}'`);
+            });
+            if (targetBtn) targetBtn.classList.add('active');
+        }
+        this.loadBahan();
     },
 
-    // --- Bahan Praktik Logic
     loadBahan: async function () {
         this.showLoading('Memuat Bahan Praktik...');
         let bahanRaw = await db.getAll('bahan');
@@ -2249,12 +3478,54 @@ const app = {
             bahanRaw = bahanRaw.filter(b => String(b.Kode_jurusan || b.jurusan_id || '') === myJurusanId);
         }
 
+        // Calculate summary stats
+        const totalJenis = bahanRaw.length;
+        let countAman = 0;
+        let countKritis = 0;
+        let countHabis = 0;
+
+        bahanRaw.forEach(b => {
+            const stok = Number(b.Stok || b.stok || b.Jumlah || b.jumlah || 0);
+            const stokMin = Number(b.Stok_Minimal || b.Stok_minimal || b['Stok Minimal'] || b.stok_minimal || b.Minimal || 0);
+            if (stok <= 0) countHabis++;
+            else if (stok <= stokMin || stok <= 5) countKritis++;
+            else countAman++;
+        });
+
+        const elTotal = document.getElementById('bahan-stat-total');
+        const elAman = document.getElementById('bahan-stat-aman');
+        const elKritis = document.getElementById('bahan-stat-kritis');
+        const elHabis = document.getElementById('bahan-stat-habis');
+        if (elTotal) elTotal.textContent = totalJenis;
+        if (elAman) elAman.textContent = countAman;
+        if (elKritis) elKritis.textContent = countKritis;
+        if (elHabis) elHabis.textContent = countHabis;
+
+        // Filter by search query
         if (search) {
             bahanRaw = bahanRaw.filter(b => {
-                const idb = b.ID_Barang || b['ID Barang'] || b.ID || b.id || b.id_barang || b.Kode || '';
-                const namab = b.Nama_Barang || b['Nama Barang'] || b.Nama || b.nama || b.Barang || '';
-                return idb.toLowerCase().includes(search) || namab.toLowerCase().includes(search);
+                const idb = String(b.ID_Barang || b['ID Barang'] || b.ID || b.id || b.id_barang || b.Kode || '').toLowerCase();
+                const namab = String(b.Nama_Barang || b['Nama Barang'] || b.Nama || b.nama || b.Barang || '').toLowerCase();
+                const kat = String(b.Kategori || b.kategori || '').toLowerCase();
+                return idb.includes(search) || namab.includes(search) || kat.includes(search);
             });
+        }
+
+        // Filter by Status Tab
+        if (this.state.bahanStatusFilter === 'aman') {
+            bahanRaw = bahanRaw.filter(b => {
+                const stok = Number(b.Stok || b.stok || b.Jumlah || b.jumlah || 0);
+                const min = Number(b.Stok_Minimal || b.Stok_minimal || 0);
+                return stok > (min || 5);
+            });
+        } else if (this.state.bahanStatusFilter === 'menipis') {
+            bahanRaw = bahanRaw.filter(b => {
+                const stok = Number(b.Stok || b.stok || b.Jumlah || b.jumlah || 0);
+                const min = Number(b.Stok_Minimal || b.Stok_minimal || 0);
+                return stok > 0 && (stok <= min || stok <= 5);
+            });
+        } else if (this.state.bahanStatusFilter === 'habis') {
+            bahanRaw = bahanRaw.filter(b => Number(b.Stok || b.stok || 0) <= 0);
         }
 
         // --- Proses Sorting ---
@@ -2267,16 +3538,12 @@ const app = {
                 
                 if (sc === 'id') {
                     valA = a.ID_Barang || a['ID Barang'] || a.ID || a.id || a.id_barang || a.Kode || '';
-                    valB = b.ID_Barang || b['ID Barang'] || b.ID || b.id || b.id_barang || b.Kode || '';
                 } else if (sc === 'nama') {
                     valA = a.Nama_Barang || a['Nama Barang'] || a.Nama || a.nama || a.Barang || '';
-                    valB = b.Nama_Barang || b['Nama Barang'] || b.Nama || b.nama || b.Barang || '';
                 } else if (sc === 'kategori') {
                     valA = a.Kategori || a.kategori || '';
-                    valB = b.Kategori || b.kategori || '';
                 } else if (sc === 'satuan') {
                     valA = a.Satuan || a.satuan || '';
-                    valB = b.Satuan || b.satuan || '';
                 } else if (sc === 'stok') {
                     valA = Number(a.Stok || a.stok || a.Jumlah || a.jumlah || 0);
                     valB = Number(b.Stok || b.stok || b.Jumlah || b.jumlah || 0);
@@ -2296,7 +3563,7 @@ const app = {
         tbody.innerHTML = '';
 
         if (bahanRaw.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Data tidak ditemukan</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color:var(--text-muted);"><i class="ph ph-package" style="font-size:1.5rem; display:block; margin-bottom:0.5rem; opacity:0.5;"></i>Data bahan tidak ditemukan</td></tr>';
             return this.hideLoading();
         }
 
@@ -2317,20 +3584,42 @@ const app = {
             b.Stok = stokTotal;
             b.Stok_Minimal = stokMin;
 
-            let stokBadgeClass = 'badge bg-success';
-            if (stokTotal <= stokMin && stokTotal > 0) stokBadgeClass = 'badge bg-warning';
-            if (stokTotal <= 0) stokBadgeClass = 'badge bg-danger';
+            let statusTag = '<span class="badge" style="background:rgba(16,185,129,0.2); color:#34d399; font-size:0.72rem; padding:0.15rem 0.4rem; border:1px solid rgba(16,185,129,0.35);">Aman</span>';
+            let meterFill = 'bg-healthy';
+            if (stokTotal <= stokMin || (stokTotal <= 5 && stokTotal > 0)) {
+                statusTag = '<span class="badge" style="background:rgba(245,158,11,0.2); color:#fbbf24; font-size:0.72rem; padding:0.15rem 0.4rem; border:1px solid rgba(245,158,11,0.35);">Menipis</span>';
+                meterFill = 'bg-low';
+            }
+            if (stokTotal <= 0) {
+                statusTag = '<span class="badge" style="background:rgba(239,68,68,0.2); color:#f87171; font-size:0.72rem; padding:0.15rem 0.4rem; border:1px solid rgba(239,68,68,0.35);">Habis</span>';
+                meterFill = 'bg-empty';
+            }
+
+            const maxStokRef = Math.max(stokTotal, (stokMin || 5) * 2, 20);
+            const bahanPct = Math.min(100, Math.round((stokTotal / maxStokRef) * 100));
+
+            const bahanStockMeter = `
+                <div class="mini-stock-container">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+                        <b>${stokTotal} ${satuan}</b>
+                        ${statusTag}
+                    </div>
+                    <div class="mini-stock-bar">
+                        <div class="mini-stock-fill ${meterFill}" style="width:${bahanPct}%"></div>
+                    </div>
+                </div>
+            `;
 
             tr.innerHTML = `
-                <td>${idBarang || '-'}</td>
+                <td><b style="font-family:monospace; font-size:0.88rem;">${idBarang || '-'}</b></td>
                 <td style="font-weight:600;">${namaBarang || '-'}</td>
-                <td><span class="badge" style="background:var(--surface-light); color:var(--text);">${kategori || '-'}</span></td>
-                <td>${satuan || '-'}</td>
-                <td><span class="${stokBadgeClass}" style="color:white; padding:0.25rem 0.5rem; border-radius:4px;">${stokTotal} Sisa</span></td>
+                <td><span class="badge" style="background:rgba(255,255,255,0.06); color:var(--text-main); font-size:0.75rem;">${kategori || '-'}</span></td>
+                <td style="color:var(--text-muted); font-size:0.85rem;">${satuan || '-'}</td>
+                <td>${bahanStockMeter}</td>
                 <td>
-                    <div style="display:flex; gap:0.5rem; justify-content:center;">
-                        <button class="btn-icon" style="color:var(--warning);" onclick="app.openBahanCheckoutModal('${idBarang}')" title="Input Pemakaian" ${stokTotal <= 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}><i class="ph ph-trend-down"></i></button>
-                        <button class="btn-icon" style="color:var(--primary);" onclick="app.openBahanModal('${idBarang}')" title="Edit Data"><i class="ph ph-pencil-simple"></i></button>
+                    <div style="display:flex; gap:0.35rem; justify-content:center;">
+                        <button class="btn btn-outline btn-sm" style="color:var(--warning); border-color:rgba(245,158,11,0.4); padding:0.25rem 0.5rem; font-size:0.78rem;" onclick="app.openBahanCheckoutModal('${idBarang}')" title="Alokasi / Input Pemakaian Bahan" ${stokTotal <= 0 ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''}><i class="ph ph-minus-circle"></i> Pakai</button>
+                        <button class="btn-icon" style="color:var(--primary-light);" onclick="app.openBahanModal('${idBarang}')" title="Edit Data"><i class="ph ph-pencil-simple"></i></button>
                         <button class="btn-icon" style="color:var(--danger);" onclick="app.deleteBahan('${idBarang}')" title="Hapus"><i class="ph ph-trash"></i></button>
                     </div>
                 </td>
@@ -2442,8 +3731,10 @@ const app = {
         if (!diizinkan) return;
 
         this.showLoading('Menghapus...');
+        const item = await db.stores.bahan.getItem(String(id));
         await db.stores.bahan.removeItem(String(id));
-        await db.queueSyncTask('delete_bahan', 'bahan', { ID_Barang: id });
+        const payload = item ? { ...item, ID_Barang: id } : { ID_Barang: id };
+        await db.queueSyncTask('delete_bahan', 'bahan', payload);
         db.syncToServer();
 
         this.hideLoading();
@@ -2596,6 +3887,18 @@ const app = {
             keluarRaw = keluarRaw.filter(k => String(k.Kode_jurusan || k.jurusan_id || '') === myJurusanId);
         }
 
+        // Search query filter
+        const query = document.getElementById('search-bahan-keluar')?.value.toLowerCase() || '';
+        if (query) {
+            keluarRaw = keluarRaw.filter(k => {
+                const nb = String(k.Nama_Barang || '').toLowerCase();
+                const pet = String(k.Diinput_Oleh || '').toLowerCase();
+                const st = String(k.Status || '').toLowerCase();
+                const idb = String(k.ID_Barang || '').toLowerCase();
+                return nb.includes(query) || pet.includes(query) || st.includes(query) || idb.includes(query);
+            });
+        }
+
         // Urutkan riwayat secara descending (terbaru di atas)
         keluarRaw.reverse();
 
@@ -2604,19 +3907,42 @@ const app = {
         tbody.innerHTML = '';
 
         if (keluarRaw.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Belum ada riwayat pengeluaran bahan</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color:var(--text-muted);"><i class="ph ph-trend-down" style="font-size:1.5rem; display:block; margin-bottom:0.5rem; opacity:0.5;"></i>Belum ada riwayat pengeluaran bahan</td></tr>';
             return this.hideLoading();
         }
 
         keluarRaw.forEach(k => {
+            const rawStatus = String(k.Status || '');
+            let tglDisplay = rawStatus.includes('|') ? rawStatus.split('|')[0].trim() : (k.ID_Barang || '-');
+            let keteranganDisplay = rawStatus.includes('|') ? rawStatus.split('|')[1]?.trim() : rawStatus;
+            if (!keteranganDisplay) keteranganDisplay = 'Pemakaian Praktik';
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${k.Status && String(k.Status).includes('|') ? k.Status.split('|')[0] : (k.ID_Barang || '-')}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:0.4rem;">
+                        <i class="ph ph-calendar" style="color:var(--primary-light);"></i>
+                        <span style="font-size:0.85rem;">${tglDisplay}</span>
+                    </div>
+                </td>
                 <td style="font-weight:600;">${k.Nama_Barang || '-'}</td>
-                <td style="color:var(--danger); font-weight:700;">- ${k.Total_Keluar || 0}</td>
-                <td>${k.Satuan || '-'}</td>
-                <td>${k.Status && String(k.Status).includes('|') ? k.Status.split('|')[1]?.trim() : (k.Status || '-')}</td>
-                <td>${k.Diinput_Oleh || '-'}</td>
+                <td>
+                    <span class="badge bg-danger" style="color:white; font-weight:700; font-size:0.8rem; padding:0.2rem 0.5rem;">
+                        - ${k.Total_Keluar || 0}
+                    </span>
+                </td>
+                <td style="color:var(--text-muted); font-size:0.85rem;">${k.Satuan || '-'}</td>
+                <td>
+                    <span class="badge" style="background:rgba(255,255,255,0.06); color:var(--text-main); font-size:0.75rem;">
+                        ${keteranganDisplay}
+                    </span>
+                </td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.82rem; color:var(--text-muted);">
+                        <i class="ph ph-user-circle" style="font-size:1rem; color:var(--text-main);"></i>
+                        <span>${k.Diinput_Oleh || '-'}</span>
+                    </div>
+                </td>
             `;
             tbody.appendChild(tr);
         });

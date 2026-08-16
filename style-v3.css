@@ -582,36 +582,316 @@ p { color: var(--text-muted); line-height: 1.5; }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Dashboard Grid */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
+/* Dashboard Header & Period Filter Toolbar */
+.dashboard-header-bar {
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  padding: 1.35rem 1.75rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
 }
-.stat-card {
-  padding: 1rem 1.25rem;
+.dashboard-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.period-filter-group {
+  display: flex;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 30px;
+  padding: 4px;
+  gap: 4px;
+}
+.period-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.period-pill:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+.period-pill.active {
+  background: linear-gradient(135deg, var(--primary), #6366f1);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+}
+
+/* Dashboard Grid & Modern Stat Cards */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.stat-card {
+  padding: 1.25rem 1.4rem;
+  min-height: 105px;
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
   border-radius: var(--radius-lg);
-  transition: transform 0.3s;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top left, rgba(255,255,255,0.06), transparent 60%);
+  pointer-events: none;
 }
 .stat-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.35), 0 0 15px rgba(79, 70, 229, 0.15);
+}
+.stat-info {
+  flex: 1;
+}
+.stat-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.2rem;
+}
+.stat-info h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+.stat-info h2 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0.15rem 0 0 0;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+.stat-subbadge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.18rem 0.5rem;
+  border-radius: 20px;
+  color: white;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 .stat-icon {
-  width: 45px;
-  height: 45px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
-.bg-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.bg-green { background: linear-gradient(135deg, #10b981, #059669); }
-.bg-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.bg-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.bg-green { background: linear-gradient(135deg, #10b981, #047857); }
+.bg-orange { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.bg-danger { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.bg-indigo { background: linear-gradient(135deg, #6366f1, #4338ca); }
+
+/* Visual Analytics 2-Column Grid */
+.dashboard-analytics-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 1.25rem;
+}
+.analytics-chart-card, .top-tools-card {
+  display: flex;
+  flex-direction: column;
+}
+.chart-container-wrapper {
+  position: relative;
+  height: 290px;
+  width: 100%;
+  padding: 1rem 1.25rem 1.25rem 1.25rem;
+}
+.chart-type-toggle {
+  display: flex;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+.btn-icon-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-icon-toggle:hover {
+  color: var(--text-main);
+}
+.btn-icon-toggle.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.4);
+}
+
+/* Top 5 Leaderboard List */
+.top-tools-list {
+  padding: 0.75rem 1.25rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.top-tool-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+.top-tool-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateX(3px);
+}
+.top-tool-rank {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+.rank-1 {
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+  color: #78350f;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+}
+.rank-2 {
+  background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+  color: #1e293b;
+}
+.rank-3 {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  color: #fff;
+}
+.rank-other {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+.top-tool-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.top-tool-thumb-placeholder {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(79, 70, 229, 0.15);
+  color: var(--accent);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.top-tool-body {
+  flex: 1;
+  min-width: 0;
+}
+.top-tool-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+.top-tool-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+.top-tool-count-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.top-tool-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.top-tool-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dashboard Tables 2-Column Grid */
+.dashboard-tables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-tables-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* Table Modern */
 .card-header {
@@ -764,8 +1044,78 @@ p { color: var(--text-muted); line-height: 1.5; }
         padding: 1rem;
         padding-bottom: 96px;
     }
+    .dashboard-header-bar {
+        padding: 1rem 1.15rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.85rem;
+        margin-bottom: 1.25rem;
+    }
+    .dashboard-title {
+        font-size: 1.15rem;
+    }
+    .period-filter-group {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+    .period-pill {
+        flex: 1;
+        text-align: center;
+        padding: 0.45rem 0.3rem;
+        font-size: 0.75rem;
+    }
     .dashboard-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-bottom: 1.25rem;
+    }
+    .stat-card {
+        padding: 0.9rem 1rem;
+        min-height: 90px;
+        gap: 0.75rem;
+    }
+    .stat-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 1.15rem;
+    }
+    .stat-info h3 {
+        font-size: 0.72rem;
+    }
+    .stat-info h2 {
+        font-size: 1.35rem;
+    }
+    .stat-subbadge {
+        font-size: 0.62rem;
+        padding: 0.12rem 0.38rem;
+    }
+    .dashboard-analytics-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        margin-top: 1.25rem !important;
+        margin-bottom: 1.25rem;
+    }
+    .chart-container-wrapper {
+        height: 250px;
+        padding: 0.75rem 0.85rem 1rem 0.85rem;
+    }
+    .dashboard-tables-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        margin-top: 1.25rem !important;
+    }
+    .top-tools-list {
+        padding: 0.5rem 0.85rem 1rem 0.85rem;
+        gap: 0.5rem;
+    }
+    .top-tool-item {
+        padding: 0.5rem 0.65rem;
+        gap: 0.6rem;
+    }
+    .top-tool-name {
+        max-width: 120px;
+        font-size: 0.8rem;
     }
     .card-header, .flex-header {
         flex-direction: column;
@@ -835,12 +1185,47 @@ p { color: var(--text-muted); line-height: 1.5; }
 @media (max-width: 480px) {
     .content-wrapper {
         padding: 0.75rem;
+        padding-bottom: 96px;
+    }
+    .dashboard-header-bar {
+        padding: 0.85rem 1rem;
+        gap: 0.75rem;
+    }
+    .period-pill {
+        padding: 0.4rem 0.2rem;
+        font-size: 0.7rem;
     }
     .dashboard-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
     }
     .stat-card {
-        padding: 0.9rem;
+        padding: 0.75rem 0.8rem;
+        min-height: 80px;
+        gap: 0.55rem;
+    }
+    .stat-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+        border-radius: 8px;
+    }
+    .stat-info h3 {
+        font-size: 0.68rem;
+    }
+    .stat-info h2 {
+        font-size: 1.2rem;
+    }
+    .stat-subbadge {
+        font-size: 0.58rem;
+        padding: 0.1rem 0.3rem;
+    }
+    .chart-container-wrapper {
+        height: 220px;
+        padding: 0.5rem 0.5rem 0.75rem 0.5rem;
+    }
+    .top-tool-name {
+        max-width: 90px;
     }
     .topbar {
         padding: 0.75rem 0.85rem 0.7rem;
@@ -1653,4 +2038,321 @@ select option {
     .search-box-embedded {
         min-width: 0;
     }
+}
+
+/* ==========================================================================
+   BARCODE & QR CODE LABEL STICKER STYLING
+   ========================================================================== */
+.barcode-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 12px;
+}
+.barcode-sticker-card {
+    background: #ffffff;
+    color: #000000;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 12px 10px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.barcode-sticker-graphic {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 55px;
+    margin-bottom: 4px;
+}
+.barcode-sticker-graphic svg,
+.barcode-sticker-graphic canvas,
+.barcode-sticker-graphic img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+.barcode-sticker-code {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: #000000;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+}
+.barcode-sticker-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+    margin-top: 2px;
+    max-width: 195px;
+    word-break: break-word;
+}
+
+/* Print Only Rules */
+.print-only {
+    display: none;
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 8mm;
+    }
+    body, html {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+    body::before, body::after {
+        display: none !important;
+    }
+    #app, .modal, .toast-container, .bottom-nav, .sidebar, .topbar {
+        display: none !important;
+    }
+    .print-only {
+        display: block !important;
+    }
+    #print-barcode-area {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6mm 5mm !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+    }
+    .barcode-sticker-card {
+        border: 1px dashed #94a3b8 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 8px 6px !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        box-shadow: none !important;
+    }
+}
+
+/* ==========================================================================
+   MODERN DATA SECTIONS: QUICK TABS, STOCK METERS & SUMMARY BANNERS
+   ========================================================================== */
+.section-quick-tabs {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.section-quick-tabs::-webkit-scrollbar {
+    display: none;
+}
+.quick-tab-pill {
+    padding: 0.4rem 0.85rem;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.quick-tab-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+.quick-tab-pill.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
+}
+.quick-tab-badge {
+    padding: 0.1rem 0.45rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+.quick-tab-pill.active .quick-tab-badge {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Micro-Stat Summary Banner (Bahan) */
+.bahan-summary-banner {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.12);
+}
+.bahan-stat-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    transition: transform 0.2s ease;
+}
+.bahan-stat-box:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.06);
+}
+.bahan-stat-box.border-green {
+    border-left: 3px solid var(--success);
+}
+.bahan-stat-box.border-yellow {
+    border-left: 3px solid var(--warning);
+}
+.bahan-stat-box.border-red {
+    border-left: 3px solid var(--danger);
+}
+.bahan-stat-val {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1.1;
+}
+.bahan-stat-lbl {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.text-green { color: var(--success) !important; }
+.text-yellow { color: var(--warning) !important; }
+.text-red { color: var(--danger) !important; }
+
+/* Mini Stock Progress Bar */
+.mini-stock-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 90px;
+}
+.mini-stock-bar {
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.mini-stock-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+.mini-stock-fill.bg-healthy {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+.mini-stock-fill.bg-low {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+.mini-stock-fill.bg-empty {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+@media (max-width: 640px) {
+    .bahan-summary-banner {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+    .bahan-stat-val {
+        font-size: 1.15rem;
+    }
+    .quick-tab-pill {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.72rem;
+    }
+}
+
+/* ==========================================================================
+   BARCODE & QR CODE SCANNER (CAMERA & HARDWARE GUN) STYLING
+   ========================================================================== */
+.scanner-gun-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 0.3rem 0.6rem;
+    transition: all 0.2s ease;
+}
+.scanner-gun-wrapper:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+    background: rgba(0, 0, 0, 0.4);
+}
+.scanner-gun-wrapper input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 0.8rem;
+    width: 135px;
+}
+.scanner-gun-wrapper input::placeholder {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+/* Camera Scanner Viewport & Laser Animation */
+#qr-reader {
+    border: none !important;
+}
+#qr-reader__scan_region {
+    background: transparent !important;
+}
+#qr-reader__dashboard {
+    display: none !important;
+}
+#qr-reader video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px !important;
+    object-fit: cover !important;
+    border-radius: 12px !important;
+}
+.scanner-laser {
+    position: absolute;
+    top: 10%;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444, 0 0 14px #ef4444;
+    animation: laserScan 2s infinite ease-in-out alternate;
+    pointer-events: none;
+    z-index: 10;
+}
+@keyframes laserScan {
+    0% { top: 12%; opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { top: 88%; opacity: 0.8; }
 }
