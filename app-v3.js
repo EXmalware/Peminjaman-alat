@@ -1,3 +1,5 @@
+const SYNC_LOGO_URL = 'https://blogger.googleusercontent.com/img/a/AVvXsEiKXQ1HoCQBJcO1Zya9IHEm0K31XGPxH5bWo-8HcJMDOPyhAyR3bQ16tXmMCKbFo5_lscfqiFYoooE653fOpUWbbu4vM8xmbRIRUmGnit0rWbzM3r6GOm_7426jITbxvlAI9TeKLLWOdcSrLd5FiDzytpG4R0EBKOX1oQfWXfITHtllsRE9__2nCK4ZDsA';
+
 /**
  * app.js - PinjamAlat Main Application Logic
  */
@@ -343,6 +345,7 @@ const app = {
 
     updateHeaderProfile: function () {
         if (!this.state.user) return;
+        this.updateSidebarJurusan();
         const nameForInitial = this.state.user.full_name || this.state.user.username || '?';
         const initial = encodeURIComponent(nameForInitial.charAt(0).toUpperCase());
         const defaultAvatar = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect width=%2248%22 height=%2248%22 rx=%2224%22 fill=%22%23343A40%22/%3E%3Ctext x=%2224%22 y=%2228%22 font-size=%2224%22 fill=%22%23F8FAFC%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22%3E${initial}%3C/text%3E%3C/svg%3E`;
@@ -370,6 +373,24 @@ const app = {
         } else {
             avatarEl.src = defaultAvatar;
             avatarEl.classList.add('no-avatar');
+        }
+    },
+
+    updateSidebarJurusan: async function () {
+        const jurusanEl = document.getElementById('sidebar-jurusan-name');
+        if (!jurusanEl || !this.state.user) return;
+
+        if (this.state.user.role === 'Admin') {
+            jurusanEl.textContent = 'Semua Jurusan';
+            return;
+        }
+
+        try {
+            const jurusanList = await db.getAll('jurusan');
+            const jurusan = jurusanList.find(item => String(item.id || item.newId) === String(this.state.user.jurusan_id));
+            jurusanEl.textContent = jurusan?.nama || jurusan?.kode || `Jurusan ${this.state.user.jurusan_id || '-'}`;
+        } catch (error) {
+            jurusanEl.textContent = `Jurusan ${this.state.user.jurusan_id || '-'}`;
         }
     },
 
@@ -586,12 +607,15 @@ const app = {
 
     backgroundSync: async function () {
         if (!this.state.isOnline) return;
+        if (this.state.syncInProgress) return;
+        this.state.syncInProgress = true;
 
         // Memutar ikon secara visual bila dipicu secara manual/otomatis
         const btnSync = document.getElementById('btn-sync');
         if (btnSync) {
             btnSync.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
         }
+        this.showLoading('Menyinkronkan data...');
 
         try {
             const queue = await db.getAll('syncQueue');
@@ -610,10 +634,14 @@ const app = {
             if (btnSync) {
                 btnSync.innerHTML = '<i class="ph ph-arrows-clockwise"></i>';
             }
+            this.hideLoading();
+            this.state.syncInProgress = false;
         }
     },
 
     showLoading: function (text = 'Memuat...') {
+        const loadingLogo = document.getElementById('loading-logo');
+        if (loadingLogo) loadingLogo.src = SYNC_LOGO_URL;
         document.getElementById('loading-text').textContent = text;
         document.getElementById('loading-overlay').classList.remove('hidden');
     },
@@ -1118,8 +1146,7 @@ const app = {
         // 3. Load Bahan Kritis (Habis/Menipis)
         const bahanTable = document.getElementById('dashboard-bahan-kritis-table');
         if (bahanTable) {
-            const tbody = bahanTable.querySelector('tbody');
-            tbody.innerHTML = '';
+            bahanTable.innerHTML = '';
             
             let bahanRaw = await db.getAll('bahan');
             const myJurusanId = String(this.state.user.jurusan_id || '');
@@ -1134,23 +1161,26 @@ const app = {
             }).sort((a, b) => Number(a.Stok || 0) - Number(b.Stok || 0));
 
             if (bahanKritis.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color:var(--text-muted);"><i class="ph ph-check-circle" style="color:var(--success); font-size:1.2rem; vertical-align:middle; margin-right:0.4rem;"></i>Semua stok bahan dalam kondisi aman</td></tr>';
+                bahanTable.innerHTML = '<div class="dashboard-card-empty"><i class="ph ph-check-circle"></i><span>Semua stok bahan dalam kondisi aman</span></div>';
             } else {
-                bahanKritis.forEach(b => {
+                bahanKritis.forEach((b, index) => {
                     const stok = Number(b.Stok || 0);
                     const isHabis = stok <= 0;
                     const bClass = isHabis ? 'bg-danger' : 'bg-warning';
                     const bText = isHabis ? 'Habis' : 'Menipis';
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${b.ID_Barang || '-'}</td>
-                        <td><b>${b.Nama_Barang}</b></td>
-                        <td>${stok} ${b.Satuan || ''}</td>
-                        <td style="text-align:right">
-                            <span class="badge ${bClass}" style="color:white; padding:0.25rem 0.5rem; font-size:0.75rem; border-radius:4px;">${bText}</span>
-                        </td>
+                    const card = document.createElement('div');
+                    card.className = 'dashboard-horizontal-card dashboard-card-enter';
+                    card.style.setProperty('--card-index', index);
+                    card.innerHTML = `
+                        <div class="dashboard-card-icon bahan-card-icon"><i class="ph ph-package"></i></div>
+                        <div class="dashboard-card-main">
+                            <div class="dashboard-card-title">${b.Nama_Barang || '-'}</div>
+                            <div class="dashboard-card-meta">${b.ID_Barang || '-'} <span>•</span> Stok minimum ${b.Stok_Minimal || 0} ${b.Satuan || ''}</div>
+                        </div>
+                        <div class="dashboard-card-value"><strong>${stok}</strong><small>${b.Satuan || 'unit'}</small></div>
+                        <span class="badge ${bClass} dashboard-card-status">${bText}</span>
                     `;
-                    tbody.appendChild(tr);
+                    bahanTable.appendChild(card);
                 });
             }
         }
@@ -1158,23 +1188,27 @@ const app = {
         // 4. Load 10 Recent Peminjaman
         const recentTable = document.getElementById('table-recent-peminjaman');
         if (recentTable) {
-            const tbody = recentTable.querySelector('tbody');
-            tbody.innerHTML = '';
+            recentTable.innerHTML = '';
             const recentList = riwayat.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
             
             if (recentList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color:var(--text-muted);">Tidak ada riwayat transaksi</td></tr>';
+                recentTable.innerHTML = '<div class="dashboard-card-empty"><i class="ph ph-clock-counter-clockwise"></i><span>Tidak ada riwayat transaksi</span></div>';
             } else {
-                recentList.forEach(p => {
+                recentList.forEach((p, index) => {
                     let statusBadge = p.status === 'DIPINJAM' ? '<span class="badge" style="background:var(--warning); color:white; padding:2px 6px;">DIPINJAM</span>' : '<span class="badge" style="background:var(--success); color:white; padding:2px 6px;">KEMBALI</span>';
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><b>${p.nomor_peminjaman}</b></td>
-                        <td>${p.nama_peminjam}</td>
-                        <td>${this.formatDate(p.created_at)}</td>
-                        <td>${statusBadge}</td>
+                    const card = document.createElement('div');
+                    card.className = 'dashboard-horizontal-card dashboard-card-enter';
+                    card.style.setProperty('--card-index', index);
+                    card.innerHTML = `
+                        <div class="dashboard-card-icon transaction-card-icon"><i class="ph ph-hand-coins"></i></div>
+                        <div class="dashboard-card-main">
+                            <div class="dashboard-card-title">${p.nama_peminjam || '-'}</div>
+                            <div class="dashboard-card-meta"><b>${p.nomor_peminjaman || '-'}</b> <span>•</span> ${this.formatDate(p.created_at)}</div>
+                        </div>
+                        <div class="dashboard-card-context">${p.kelas_unit || 'Kelas/Unit'}</div>
+                        <div class="dashboard-card-status">${statusBadge}</div>
                     `;
-                    tbody.appendChild(tr);
+                    recentTable.appendChild(card);
                 });
             }
         }
@@ -1389,6 +1423,25 @@ const app = {
         return url;
     },
 
+    isNewAlat: function (alat) {
+        const tanggalMasuk = alat?.tanggal_masuk || alat?.Tanggal_Masuk || alat?.['Tanggal Masuk'];
+        if (!tanggalMasuk) return false;
+
+        const dateText = String(tanggalMasuk).trim();
+        const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateText) ? `${dateText}T00:00:00` : dateText);
+        if (isNaN(date.getTime())) return false;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        date.setHours(0, 0, 0, 0);
+        const ageDays = Math.floor((today.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+        return ageDays >= 0 && ageDays <= 5;
+    },
+
+    formatDriveImageUrl: function (url) {
+        return this.getDriveImageUrl(url);
+    },
+
     toggleAlatView: function () {
         this.state.alatViewMode = this.state.alatViewMode === 'list' ? 'grid' : 'list';
         this.state.alatPage = 1;
@@ -1445,7 +1498,17 @@ const app = {
     loadAlat: async function () {
         const query = document.getElementById('alat-search')?.value.toLowerCase() || '';
         const rawAlat = await db.getAll('alat');
-        const allJurusanAlat = this.getFilteredData(rawAlat);
+        const uniqueAlat = [];
+        const seenIds = new Set();
+        rawAlat.forEach(alat => {
+            const itemId = db.getStoreItemId('alat', alat);
+            const code = String(alat.kode_seri || '').trim().toLowerCase();
+            const identity = String(itemId || code || `${alat.nama || ''}|${alat.jurusan_id || ''}`).trim().toLowerCase();
+            if (seenIds.has(identity)) return;
+            seenIds.add(identity);
+            uniqueAlat.push(alat);
+        });
+        const allJurusanAlat = this.getFilteredData(uniqueAlat);
 
         // Calculate counts for status tabs
         const countAll = allJurusanAlat.length;
@@ -1533,6 +1596,7 @@ const app = {
         alatData.forEach(a => {
             const katName = katMap[a.kategori_id] || a.kategori_id || '-';
             const imgUrl = this.getDriveImageUrl(a.foto);
+            const newBadgeHtml = this.isNewAlat(a) ? '<span class="new-alat-badge">NEW</span>' : '';
 
             // Row Highlight Style & Grid Color berdasarkan Kondisi (tanpa teks kondisi di tabel)
             let rowHighlightStyle = '';
@@ -1580,7 +1644,7 @@ const app = {
                     ${imgUrl ? `<img src="${imgUrl}" style="width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">` : `<div style="width:44px; height:44px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; display:flex; align-items:center; justify-content:center"><i class="ph ph-image" style="color:var(--text-muted); font-size:1.2rem;"></i></div>`}
                 </td>
                 <td style="padding: 0.6rem 0.75rem;">
-                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); line-height: 1.25; margin-bottom: 0.2rem;">${a.nama}</div>
+                    <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; font-weight: 700; font-size: 0.95rem; color: var(--text-main); line-height: 1.25; margin-bottom: 0.2rem;">${a.nama}${newBadgeHtml}</div>
                     <div style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted);">${a.kode_seri}</div>
                 </td>
                 <td style="padding: 0.6rem 0.75rem;">
@@ -1607,6 +1671,7 @@ const app = {
                     <div style="position:relative;">
                         ${imgUrl ? `<img src="${imgUrl}" class="alat-grid-img">` : `<div class="alat-grid-img" style="display:flex; align-items:center; justify-content:center"><i class="ph ph-image" style="font-size: 3rem; color:var(--text-muted)"></i></div>`}
                         <span class="badge" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); font-size:0.7rem;">${katName}</span>
+                        ${newBadgeHtml ? `<span class="new-alat-badge new-alat-badge-grid">NEW</span>` : ''}
                     </div>
                     <div style="font-size: 0.75rem; color: var(--text-muted); display:flex; justify-content:space-between; gap: 0.3rem; min-width: 0;">
                         <span style="flex: 1; font-family:monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight:700;">${a.kode_seri}</span>
@@ -1648,9 +1713,32 @@ const app = {
     hapusAlat: async function (id) {
         if (!await this.showDialog('Hapus Alat', 'Apakah Anda yakin ingin menghapus alat ini permanen?', 'error')) return;
         this.showLoading('Menghapus alat...');
-        const item = await db.stores.alat.getItem(String(id));
-        await db.stores.alat.removeItem(String(id));
+        const allItems = await db.getAll('alat');
+        const targetId = String(id || '').trim().toLowerCase();
+        const matchingItems = allItems.filter(item => {
+            const identities = [db.getStoreItemId('alat', item), item.id, item.newId, item.kode_seri]
+                .filter(Boolean).map(value => String(value).trim().toLowerCase());
+            return identities.includes(targetId);
+        });
+        const item = matchingItems[0] || null;
+        for (const matchingItem of matchingItems) {
+            const keys = [db.getStoreItemId('alat', matchingItem), matchingItem.id, matchingItem.newId, matchingItem.kode_seri]
+                .filter(Boolean).map(value => String(value));
+            for (const key of new Set(keys)) await db.stores.alat.removeItem(key);
+        }
         const payload = item ? { ...item, id: id, newId: id } : { id: id, newId: id };
+        const queue = await db.getAll('syncQueue');
+        for (const task of queue) {
+            if (task.storeName !== 'alat' || task.action.startsWith('delete')) continue;
+            const taskPayload = task.payload || {};
+            const taskIdentities = [db.getStoreItemId('alat', taskPayload), taskPayload.id, taskPayload.newId, taskPayload.kode_seri]
+                .filter(Boolean).map(value => String(value).trim().toLowerCase());
+            const deletedIdentities = [id, payload.id, payload.newId, payload.kode_seri]
+                .filter(Boolean).map(value => String(value).trim().toLowerCase());
+            if (taskIdentities.some(identity => deletedIdentities.includes(identity))) {
+                await db.stores.syncQueue.removeItem(task.id);
+            }
+        }
         await db.queueSyncTask('delete_alat', 'alat', payload);
         this.hideLoading();
         this.showToast('Alat berhasil dihapus', 'success');
@@ -1822,6 +1910,16 @@ const app = {
         }
 
         this.showLoading('Menyimpan...');
+        const existingItems = await db.getAll('alat');
+        for (const existing of existingItems) {
+            const sameId = id && [existing.id, existing.newId, db.getStoreItemId('alat', existing)]
+                .filter(Boolean).some(value => String(value) === String(id));
+            if (sameId) {
+                const oldKeys = [existing.id, existing.newId, db.getStoreItemId('alat', existing)]
+                    .filter(Boolean).map(value => String(value));
+                for (const oldKey of new Set(oldKeys)) await db.stores.alat.removeItem(oldKey);
+            }
+        }
         // Note: We might want to upload base64 image to Google Drive via GAS when syncing.
         await db.stores.alat.setItem(String(storeId), payload);
         await db.queueSyncTask(id ? 'update_alat' : 'insert_alat', 'alat', payload);
@@ -2032,8 +2130,8 @@ const app = {
 
     loadActivePeminjaman: async function () {
         const rawData = await db.getAll('peminjaman');
-        this.state.peminjaman = rawData;
         const filtered = this.getFilteredData(rawData);
+        this.state.peminjaman = filtered;
         const data = filtered.filter(p => p.status && p.status.trim().toUpperCase() === 'DIPINJAM').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         const tbody = document.querySelector('#table-active-peminjaman tbody');
@@ -4123,7 +4221,7 @@ const app = {
 
     // Update notification badge untuk peminjaman active
     updatePeminjamanBadge: function() {
-        const active = (this.state.peminjaman || []).filter(p => p.status === 'DIPINJAM').length;
+        const active = (this.state.peminjaman || []).filter(p => String(p.status || '').trim().toUpperCase() === 'DIPINJAM').length;
         const badge = document.querySelector('.bottom-nav-item[data-target="peminjaman"] .badge-count');
         
         if (badge) {

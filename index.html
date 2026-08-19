@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PinjamAlat - Sistem Manajemen Peminjaman</title>
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEiKXQ1HoCQBJcO1Zya9IHEm0K31XGPxH5bWo-8HcJMDOPyhAyR3bQ16tXmMCKbFo5_lscfqiFYoooE653fOpUWbbu4vM8xmbRIRUmGnit0rWbzM3r6GOm_7426jITbxvlAI9TeKLLWOdcSrLd5FiDzytpG4R0EBKOX1oQfWXfITHtllsRE9__2nCK4ZDsA">
     <meta name="theme-color" content="#1a1c29">
     
     <!-- PWA Manifest -->
@@ -18,7 +19,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="./style-v3.css">
+    <link rel="stylesheet" href="./style-v3.css?v=34">
 </head>
 <body>
     <!-- App Container -->
@@ -97,7 +98,10 @@
             <nav id="sidebar" class="sidebar collapsed-mobile">
                 <div class="sidebar-header">
                     <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgZs7SGoRoibsRUkeVfMPcmjXotJL7Q0JoXJw6fU6mQt2Ez88VVuY39eJG97DX4_p-WIfwmjAZEvCsvTXu3wYNZOzQpmoPJ6D5pptrlQO8hGOEDclFmEW5Sa6Wq6G0BlE0BjySPARQWLojr3vU2i1x8SunVWuFJv1KCcVv30zaJ8MLZZP1o-6-cdDW0Sa4/s320/smk-02.png" alt="Logo" class="sidebar-logo">
-                    <span class="sidebar-brand">PinjamAlat</span>
+                    <div class="sidebar-brand-wrap">
+                        <span class="sidebar-brand">PinjamAlat</span>
+                        <small id="sidebar-jurusan-name" class="sidebar-jurusan-name">Memuat jurusan...</small>
+                    </div>
                     <button id="close-sidebar-btn" class="sidebar-toggle-mobile"><i class="ph ph-x"></i></button>
                 </div>
                 
@@ -281,20 +285,8 @@
                                     </div>
                                     <button class="btn btn-sm btn-outline" onclick="app.navigate('bahan')">Kelola Bahan</button>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table-modern neat-table" id="dashboard-bahan-kritis-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Kode</th>
-                                                <th>Nama Bahan</th>
-                                                <th>Sisa Stok</th>
-                                                <th style="text-align: right;">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <!-- Data populated by JS -->
-                                        </tbody>
-                                    </table>
+                                <div id="dashboard-bahan-kritis-table" class="dashboard-card-list" aria-live="polite">
+                                    <!-- Data populated by JS -->
                                 </div>
                             </div>
 
@@ -310,20 +302,8 @@
                                     </div>
                                     <button class="btn btn-sm btn-outline" onclick="app.navigate('riwayat')">Lihat Riwayat</button>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table-modern" id="table-recent-peminjaman">
-                                        <thead>
-                                            <tr>
-                                                <th>TRX</th>
-                                                <th>Peminjam</th>
-                                                <th>Tanggal</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <!-- Rendered by JS -->
-                                        </tbody>
-                                    </table>
+                                <div id="table-recent-peminjaman" class="dashboard-card-list" aria-live="polite">
+                                    <!-- Rendered by JS -->
                                 </div>
                             </div>
                         </div>
@@ -739,6 +719,7 @@
         
         <!-- Loading Overlay -->
         <div id="loading-overlay" class="loading-overlay hidden">
+            <img id="loading-logo" class="loading-logo" alt="Logo SMK Negeri 1 Bumijawa">
             <div class="spinner"></div>
             <p id="loading-text">Memuat...</p>
         </div>
@@ -1320,7 +1301,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <script src="./logo.js"></script>
-    <script src="./db.js?v=25"></script>
-    <script src="./app-v3.js?v=25"></script>
+    <script src="./db.js?v=34"></script>
+    <script src="./app-v3.js?v=34"></script>
 </body>
 </html>

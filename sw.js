@@ -1,10 +1,10 @@
-const CACHE_NAME = 'pinjamalat-v25';
+const CACHE_NAME = 'pinjamalat-v34';
 const ASSETS = [
     './',
     './index.html',
-    './style-v3.css',
-    './app-v3.js?v=25',
-    './db.js?v=25',
+    './style-v3.css?v=34',
+    './app-v3.js?v=34',
+    './db.js?v=34',
     './manifest.json',
     'https://unpkg.com/@phosphor-icons/web',
     'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',

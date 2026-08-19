@@ -47,19 +47,33 @@ const db = {
         return null;
     },
 
+    getStoreItemId: function (storeName, item) {
+        if (!item) return null;
+        if (storeName === 'alat') {
+            const candidates = [item.id, item.newId, item.newid, item.NewId, item.ID_Barang, item.id_barang, item.kode_seri, item.Kode_Seri];
+            for (const candidate of candidates) {
+                if (candidate !== undefined && candidate !== null && String(candidate).trim() !== '') return String(candidate).trim();
+            }
+        }
+        return this.getItemId(item);
+    },
+
     // Save fetched data entirely
     saveMasterData: async function (storeName, dataArray) {
         await this.stores[storeName].clear();
         const seenIds = new Set();
-        const promises = dataArray.map(item => {
-            let id = this.getItemId(item);
-            if (!id || seenIds.has(id)) {
-                id = (id || 'GEN') + '_' + Math.random().toString(36).substr(2, 9);
+        const promises = dataArray.map((item, index) => {
+            const baseId = this.getStoreItemId(storeName, item) || `GEN-${index + 1}`;
+            let id = baseId;
+            let suffix = 1;
+            while (seenIds.has(id.toLowerCase())) {
+                suffix++;
+                id = `${baseId}__row_${index + 1}_${suffix}`;
             }
-            seenIds.add(id);
-            item.id = id; // Ensure the item object holds its unique identifier internally
+            seenIds.add(id.toLowerCase());
+            item.id = id;
             return this.stores[storeName].setItem(id, item);
-        });
+        }).filter(Boolean);
         return Promise.all(promises);
     },
 
@@ -111,6 +125,7 @@ const db = {
             nomor_hp: ['nomorhp', 'hp', 'wa', 'nomor_hp', 'no_hp', 'whatsapp'],
             kelas_unit: ['kelasunit', 'kelas', 'unit', 'kelas_unit'],
             tanggal_pinjam: ['tanggalpinjam', 'tglpinjam', 'tanggal_pinjam', 'tgl_pinjam'],
+            tanggal_masuk: ['tanggalmasuk', 'tglmasuk', 'tanggal_masuk', 'tgl_masuk'],
             tanggal_kembali_estimasi: ['tanggalkembaliestimasi', 'estimasi', 'estimasi_kembali', 'tanggal_kembali_estimasi'],
             tanggal_kembali_aktual: ['tanggalkembaliaktual', 'kembaliaktual', 'tanggal_kembali_aktual', 'tgl_kembali_aktual'],
             created_at: ['createdat', 'created_at', 'tanggalpembuatan', 'tglpembuatan', 'tgl_pembuatan', 'tanggal_pembuatan'],
@@ -251,6 +266,20 @@ const db = {
                     if (itemId) {
                         await this.stores[store].removeItem(String(itemId));
                     }
+                    if (store === 'alat') {
+                        const identities = [payload.id, payload.newId, payload.kode_seri]
+                            .filter(Boolean).map(value => String(value).trim().toLowerCase());
+                        const localItems = await this.getAll(store);
+                        for (const localItem of localItems) {
+                            const localIdentities = [this.getStoreItemId(store, localItem), localItem.id, localItem.newId, localItem.kode_seri]
+                                .filter(Boolean).map(value => String(value).trim().toLowerCase());
+                            if (localIdentities.some(identity => identities.includes(identity))) {
+                                const localKeys = [this.getStoreItemId(store, localItem), localItem.id, localItem.newId, localItem.kode_seri]
+                                    .filter(Boolean).map(value => String(value));
+                                for (const key of new Set(localKeys)) await this.stores[store].removeItem(key);
+                            }
+                        }
+                    }
                 }
             }
         } catch(e) {
@@ -297,12 +326,13 @@ const db = {
         }
 
         if (storeName === 'alat') {
-            const idCandidates = [payload.newId, payload.id, payload.ID_Barang]
+            const idCandidates = [payload.newId, payload.id, payload.ID_Barang, payload.kode_seri]
                 .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
 
             const match = serverAlat.find((item) => {
-                const itemId = this.getItemId(item) || '';
-                return idCandidates.some((candidate) => String(candidate).toLowerCase() === itemId.toLowerCase());
+                const itemIdentities = [this.getStoreItemId('alat', item), item.id, item.newId, item.kode_seri]
+                    .filter(Boolean).map(value => String(value).trim().toLowerCase());
+                return idCandidates.some((candidate) => itemIdentities.includes(String(candidate).trim().toLowerCase()));
             });
 
             // Untuk aksi DELETE: task dianggap BERHASIL jika data SUDAH TIDAK ADA di server
@@ -334,13 +364,41 @@ const db = {
         return queue.filter((task) => this.isTaskApplied(serverData, task)).map((task) => task.id);
     },
 
+    removeSupersededAlatTasks: async function (queue) {
+        const deleteTasks = queue.filter(task => task.storeName === 'alat' && task.action === 'delete_alat');
+        if (deleteTasks.length === 0) return queue;
+
+        const deleteIdentities = deleteTasks.flatMap(task => {
+            const payload = task.payload || {};
+            return [payload.id, payload.newId, payload.kode_seri]
+                .filter(Boolean).map(value => String(value).trim().toLowerCase());
+        });
+        const activeQueue = [];
+        for (const task of queue) {
+            if (task.storeName === 'alat' && task.action !== 'delete_alat' && (task.action === 'insert_alat' || task.action === 'update_alat')) {
+                const payload = task.payload || {};
+                const identities = [payload.id, payload.newId, payload.kode_seri]
+                    .filter(Boolean).map(value => String(value).trim().toLowerCase());
+                if (identities.some(identity => deleteIdentities.includes(identity))) {
+                    await this.stores.syncQueue.removeItem(task.id);
+                    continue;
+                }
+            }
+            activeQueue.push(task);
+        }
+        return activeQueue;
+    },
+
     // Perform Sync to Server
     syncToServer: async function () {
         if (!navigator.onLine) return false;
         if (!this.GAS_URL || this.GAS_URL.includes('REPLACE')) return false;
 
-        const queue = await this.getAll('syncQueue');
+        let queue = await this.getAll('syncQueue');
         if (queue.length === 0) return true; // Nothing to sync
+
+        queue = await this.removeSupersededAlatTasks(queue);
+        if (queue.length === 0) return true;
 
         if (this._isSyncing) return false;
         this._isSyncing = true;
