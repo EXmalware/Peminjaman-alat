@@ -29,6 +29,7 @@ const app = {
         this.checkNetworkStatus();
         this.updateDateTime();
         setInterval(() => this.updateDateTime(), 1000);
+        this.initIdleScreensaver();
 
         // Initial sync data dipindah ke app.showMainView agar tidak memblokir antarmuka login user
 
@@ -182,23 +183,74 @@ const app = {
 
     updateDateTime: function () {
         const now = new Date();
-        const dateElement = document.getElementById('current-date');
-        const timeElement = document.getElementById('current-time');
-        if (dateElement) {
-            dateElement.textContent = new Intl.DateTimeFormat('id-ID', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric'
-            }).format(now);
-        }
-        if (timeElement) {
-            timeElement.textContent = new Intl.DateTimeFormat('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            }).format(now);
-            timeElement.dateTime = now.toISOString();
-        }
+        const dateText = new Intl.DateTimeFormat('id-ID', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        }).format(now);
+        const timeText = new Intl.DateTimeFormat('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).format(now);
+
+        ['current-date', 'screensaver-date'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = dateText;
+        });
+        ['current-time', 'screensaver-clock'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = timeText;
+                if (element.tagName === 'TIME') element.dateTime = now.toISOString();
+            }
+        });
+    },
+
+    initIdleScreensaver: function () {
+        const handleActivity = () => {
+            if (this.idleScreensaverVisible) this.hideIdleScreensaver();
+            this.resetIdleScreensaverTimer();
+        };
+
+        ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'wheel', 'scroll', 'click'].forEach(eventName => {
+            window.addEventListener(eventName, handleActivity, { passive: true });
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearTimeout(this.idleScreensaverTimer);
+                this.hideIdleScreensaver();
+            } else {
+                this.resetIdleScreensaverTimer();
+            }
+        });
+    },
+
+    resetIdleScreensaverTimer: function () {
+        clearTimeout(this.idleScreensaverTimer);
+        const mainView = document.getElementById('main-view');
+        if (!this.state.user || document.hidden || !mainView || mainView.classList.contains('hidden')) return;
+
+        this.idleScreensaverTimer = setTimeout(() => {
+            if (this.state.user && !document.hidden) this.showIdleScreensaver();
+        }, 120000);
+    },
+
+    showIdleScreensaver: function () {
+        const overlay = document.getElementById('idle-screensaver');
+        if (!overlay || !this.state.user) return;
+        this.updateDateTime();
+        this.idleScreensaverVisible = true;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+    },
+
+    hideIdleScreensaver: function () {
+        const overlay = document.getElementById('idle-screensaver');
+        this.idleScreensaverVisible = false;
+        if (!overlay) return;
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
     },
 
     testKoneksi: async function () {
@@ -298,6 +350,8 @@ const app = {
 
     handleLogout: function () {
         this.recordActivity('Logout', 'Keluar dari aplikasi');
+        clearTimeout(this.idleScreensaverTimer);
+        this.hideIdleScreensaver();
         this.state.user = null;
         localStorage.removeItem('pinjamalat_user');
         this.showLoginView();
@@ -313,6 +367,7 @@ const app = {
         document.getElementById('login-view').classList.add('hidden');
         document.getElementById('login-view').classList.remove('section-active');
         document.getElementById('main-view').classList.remove('hidden');
+        this.resetIdleScreensaverTimer();
 
         // Update User Profile UI
         this.updateHeaderProfile();

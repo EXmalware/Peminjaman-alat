@@ -71,6 +71,67 @@ body::after {
   display: none !important;
 }
 
+.idle-screensaver {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    background: rgba(8, 10, 18, 0.58);
+    backdrop-filter: blur(22px) saturate(0.65);
+    -webkit-backdrop-filter: blur(22px) saturate(0.65);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 500ms ease, visibility 500ms ease;
+}
+.idle-screensaver.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+.idle-screensaver-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    color: #f8fafc;
+    text-align: center;
+    animation: screensaver-arrive 900ms ease both;
+}
+.idle-screensaver-clock {
+    color: #fff;
+    font-size: 7rem;
+    font-weight: 300;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 8px 48px rgba(56, 189, 248, 0.24);
+}
+.idle-screensaver-date {
+    color: rgba(248, 250, 252, 0.82);
+    font-size: 1.5rem;
+    font-weight: 400;
+}
+.idle-screensaver-hint {
+    margin-top: 2.5rem;
+    color: rgba(248, 250, 252, 0.56);
+    font-size: 0.85rem;
+}
+@keyframes screensaver-arrive {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 600px) {
+    .idle-screensaver-clock { font-size: 4.25rem; }
+    .idle-screensaver-date { font-size: 1.15rem; }
+    .idle-screensaver-hint { margin-top: 1.75rem; font-size: 0.75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .idle-screensaver,
+    .idle-screensaver-content { transition: none; animation: none; }
+}
+
 /* Typography */
 h1, h2, h3, h4 { font-weight: 600; color: var(--text-main); }
 h1 { font-size: 2rem; margin-bottom: 0.5rem; }
