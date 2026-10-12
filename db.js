@@ -12,7 +12,8 @@ const db = {
         peminjaman: localforage.createInstance({ name: 'PinjamAlat', storeName: 'peminjaman' }),
         bahan: localforage.createInstance({ name: 'PinjamAlat', storeName: 'bahan' }),
         bahan_keluar: localforage.createInstance({ name: 'PinjamAlat', storeName: 'bahan_keluar' }),
-        syncQueue: localforage.createInstance({ name: 'PinjamAlat', storeName: 'syncQueue' }) // Stores offline actions
+        syncQueue: localforage.createInstance({ name: 'PinjamAlat', storeName: 'syncQueue' }), // Stores offline actions
+        activityLog: localforage.createInstance({ name: 'PinjamAlat', storeName: 'activityLog' })
     },
 
     // Backend Web App URL (To be filled by user)
@@ -92,6 +93,21 @@ const db = {
         const task = { id: taskId, action, storeName, payload, timestamp: Date.now() };
         await this.stores.syncQueue.setItem(taskId, task);
         return task;
+    },
+
+    addActivityLog: async function (entry) {
+        const id = 'activity_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+        const record = { ...entry, id, timestamp: entry.timestamp || new Date().toISOString() };
+        await this.stores.activityLog.setItem(id, record);
+
+        const keys = await this.stores.activityLog.keys();
+        if (keys.length > 1000) {
+            const records = await Promise.all(keys.map(key => this.stores.activityLog.getItem(key)));
+            records.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+            const removeCount = records.length - 1000;
+            await Promise.all(records.slice(0, removeCount).map(item => this.stores.activityLog.removeItem(item.id)));
+        }
+        return record;
     },
 
     normalizeKeys: function (obj) {
@@ -220,24 +236,23 @@ const db = {
                                 }
                                 if (hasData) data.push(this.normalizeKeys(obj));
                             }
-                            return { store: sheetObj.store, data: data };
+                            return { store: sheetObj.store, data: data, success: true };
                         }
                     } catch(e) {
                         // Coba variasi nama sheet berikutnya
                     }
                 }
-                return { store: sheetObj.store, data: [] };
+                return { store: sheetObj.store, data: [], success: false };
             };
 
             const results = await Promise.all(sheets.map(fetchSheet));
             const serverDataObj = {};
             for (const res of results) {
-                if (res.data.length > 0 || res.store === 'peminjaman' || res.store === 'alat') { 
-                    if (saveToLocal) {
-                        await this.saveMasterData(res.store, res.data);
-                    }
-                    serverDataObj[res.store] = res.data;
+                if (!res.success) continue;
+                if (saveToLocal) {
+                    await this.saveMasterData(res.store, res.data);
                 }
+                serverDataObj[res.store] = res.data;
             }
             if (saveToLocal) {
                 await this.reapplyPendingQueue();

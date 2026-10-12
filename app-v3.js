@@ -27,6 +27,8 @@ const app = {
     init: async function () {
         this.bindEvents();
         this.checkNetworkStatus();
+        this.updateDateTime();
+        setInterval(() => this.updateDateTime(), 1000);
 
         // Initial sync data dipindah ke app.showMainView agar tidak memblokir antarmuka login user
 
@@ -178,6 +180,27 @@ const app = {
         });
     },
 
+    updateDateTime: function () {
+        const now = new Date();
+        const dateElement = document.getElementById('current-date');
+        const timeElement = document.getElementById('current-time');
+        if (dateElement) {
+            dateElement.textContent = new Intl.DateTimeFormat('id-ID', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            }).format(now);
+        }
+        if (timeElement) {
+            timeElement.textContent = new Intl.DateTimeFormat('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }).format(now);
+            timeElement.dateTime = now.toISOString();
+        }
+    },
+
     testKoneksi: async function () {
         if (!navigator.onLine) {
             return await this.showDialog('Peringatan', 'Anda sedang offline!', 'error');
@@ -252,6 +275,7 @@ const app = {
                 };
 
                 localStorage.setItem('pinjamalat_user', JSON.stringify(this.state.user));
+                await this.recordActivity('Login', 'Berhasil masuk ke aplikasi');
                 this.showMainView();
             } else {
                 this.showToast('Login gagal. Periksa username dan password.', 'error');
@@ -262,6 +286,7 @@ const app = {
                 this.showToast('Login dengan akun default karena db kosong.', 'warning');
                 this.state.user = { id: 0, username: 'admin', full_name: 'Super Admin', role: 'Admin', jurusan_id: 1 };
                 localStorage.setItem('pinjamalat_user', JSON.stringify(this.state.user));
+                await this.recordActivity('Login', 'Berhasil masuk menggunakan akun default');
                 this.showMainView();
             }
         } catch (e) {
@@ -272,6 +297,7 @@ const app = {
     },
 
     handleLogout: function () {
+        this.recordActivity('Logout', 'Keluar dari aplikasi');
         this.state.user = null;
         localStorage.removeItem('pinjamalat_user');
         this.showLoginView();
@@ -535,10 +561,15 @@ const app = {
                 'kategori': 'Kategori Alat',
                 'users': 'Manajemen User',
                 'bahan': 'Bahan Praktik',
-                'bahan_keluar': 'Bahan Keluar'
+                'bahan_keluar': 'Bahan Keluar',
+                'aktivitas': 'Log Aktivitas'
             };
             document.getElementById('page-title').textContent = titleMap[targetId] || 'Halaman';
             this.loadSectionData(targetId);
+        }
+
+        if (targetId === 'alat' && this.state.user && this.state.isOnline && !this.state.syncInProgress) {
+            this.backgroundSync();
         }
 
         if (window.matchMedia('(max-width: 768px)').matches) {
@@ -669,7 +700,67 @@ const app = {
             this.loadBahan();
         } else if (section === 'bahan_keluar') {
             this.loadBahanKeluar();
+        } else if (section === 'aktivitas') {
+            this.loadActivityLog();
         }
+    },
+
+    recordActivity: async function (action, detail = '') {
+        const user = this.state.user || {};
+        try {
+            await db.addActivityLog({
+                actor: user.full_name || user.username || 'Tidak diketahui',
+                role: user.role || '',
+                action,
+                detail: String(detail || '')
+            });
+            if (this.state.currentView === 'aktivitas') this.loadActivityLog();
+        } catch (error) {
+            console.warn('Gagal menyimpan log aktivitas lokal:', error);
+        }
+    },
+
+    loadActivityLog: async function () {
+        const tbody = document.querySelector('#table-activity-log tbody');
+        if (!tbody) return;
+        const records = await db.getAll('activityLog');
+        records.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+        tbody.replaceChildren();
+
+        if (records.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 4;
+            cell.textContent = 'Belum ada aktivitas yang tercatat di perangkat ini.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+        }
+
+        records.forEach(record => {
+            const row = document.createElement('tr');
+            const date = new Date(record.timestamp);
+            const values = [
+                isNaN(date.getTime()) ? String(record.timestamp || '-') : new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'medium' }).format(date),
+                `${record.actor || '-'}${record.role ? ` (${record.role})` : ''}`,
+                record.action || '-',
+                record.detail || '-'
+            ];
+            values.forEach(value => {
+                const cell = document.createElement('td');
+                cell.textContent = value;
+                row.appendChild(cell);
+            });
+            tbody.appendChild(row);
+        });
+    },
+
+    clearActivityLog: async function () {
+        const confirmed = await this.showDialog('Hapus Log Lokal', 'Semua log aktivitas yang tersimpan di browser ini akan dihapus. Lanjutkan?', 'confirm');
+        if (!confirmed) return;
+        await db.stores.activityLog.clear();
+        this.loadActivityLog();
+        this.showToast('Log aktivitas lokal berhasil dihapus.', 'success');
     },
 
     getFilteredData: function (arr) {
@@ -1326,6 +1417,7 @@ const app = {
 
         // Queue for sync
         await db.queueSyncTask(action, 'users', payload);
+        await this.recordActivity(id ? 'Perbarui pengguna' : 'Tambah pengguna', `${payload.full_name} (${payload.username})`);
 
         this.hideLoading();
         this.closeModal('user-modal');
@@ -1397,6 +1489,7 @@ const app = {
         this.showLoading('Menyimpan...');
         await db.stores.kategori.setItem(String(storeId), payload);
         await db.queueSyncTask(id ? 'update_kategori' : 'insert_kategori', 'kategori', payload);
+        await this.recordActivity(id ? 'Perbarui kategori' : 'Tambah kategori', payload.nama);
 
         this.hideLoading();
         this.closeModal('kategori-modal');
@@ -1740,6 +1833,7 @@ const app = {
             }
         }
         await db.queueSyncTask('delete_alat', 'alat', payload);
+        await this.recordActivity('Hapus alat', `${item?.nama || id} (${item?.kode_seri || id})`);
         this.hideLoading();
         this.showToast('Alat berhasil dihapus', 'success');
         this.loadAlat();
@@ -1923,6 +2017,7 @@ const app = {
         // Note: We might want to upload base64 image to Google Drive via GAS when syncing.
         await db.stores.alat.setItem(String(storeId), payload);
         await db.queueSyncTask(id ? 'update_alat' : 'insert_alat', 'alat', payload);
+        await this.recordActivity(id ? 'Perbarui alat' : 'Tambah alat', `${payload.nama} (${payload.kode_seri})`);
 
         this.hideLoading();
         this.closeModal('alat-modal');
@@ -2580,6 +2675,7 @@ const app = {
         // Save transaction
         await db.stores.peminjaman.setItem(nomorTrx, payload);
         await db.queueSyncTask('insert_peminjaman', 'peminjaman', payload);
+        await this.recordActivity('Buat peminjaman', `${nomorTrx} - ${payload.nama_peminjam}`);
 
         // Update stock
         for (const item of this.state.cart) {
@@ -2915,6 +3011,7 @@ const app = {
         // Sertakan seluruh payload (nomor_peminjaman, id, newId) agar backend dijamin menemukan baris di spreadsheet
         const deletePayload = { ...p, id: realId, newId: realId, nomor_peminjaman: p.nomor_peminjaman || realId };
         await db.queueSyncTask('delete_peminjaman', 'peminjaman', deletePayload);
+        await this.recordActivity('Hapus peminjaman', `${p.nomor_peminjaman || realId} - ${p.nama_peminjam || ''}`);
 
         this.hideLoading();
         this.showToast('Riwayat berhasil dihapus', 'success');
@@ -3103,6 +3200,7 @@ const app = {
 
         await db.stores.peminjaman.setItem(id, p);
         await db.queueSyncTask('update_peminjaman', 'peminjaman', p);
+        await this.recordActivity('Perbarui peminjaman', `${p.nomor_peminjaman || id} - ${p.nama_peminjam || ''}`);
 
         document.getElementById('edit-peminjaman-form').reset();
 
@@ -3189,6 +3287,7 @@ const app = {
             console.error("Gagal mengurai items peminjaman", e);
         }
 
+        await this.recordActivity('Pengembalian alat', `${p.nomor_peminjaman || realId} - ${p.nama_peminjam || ''}`);
         this.hideLoading();
         this.showToast('Peminjaman berhasil diselesaikan (Sinkronisasi latar belakang...)', 'success');
         
@@ -3811,6 +3910,7 @@ const app = {
             await db.stores.bahan.setItem(targetId, payload);
             const actionType = isNew ? 'insert_bahan' : 'update_bahan';
             await db.queueSyncTask(actionType, 'bahan', payload);
+            await this.recordActivity(isNew ? 'Tambah bahan' : 'Perbarui bahan', `${nama} (${targetId})`);
             db.syncToServer();
 
             this.hideLoading();
@@ -3833,6 +3933,7 @@ const app = {
         await db.stores.bahan.removeItem(String(id));
         const payload = item ? { ...item, ID_Barang: id } : { ID_Barang: id };
         await db.queueSyncTask('delete_bahan', 'bahan', payload);
+        await this.recordActivity('Hapus bahan', `${item?.Nama_Barang || id} (${id})`);
         db.syncToServer();
 
         this.hideLoading();
@@ -4096,6 +4197,7 @@ const app = {
 
             await db.stores.bahan_keluar.setItem(kelID, logPayload);
             await db.queueSyncTask('insert_bahan_keluar', 'bahan_keluar', logPayload);
+            await this.recordActivity('Pengeluaran bahan', `${b.Nama_Barang}: ${keluarQty} ${b.Satuan || ''} - ${keterangan}`);
 
             db.syncToServer();
             this.hideLoading();

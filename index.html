@@ -116,6 +116,7 @@
                     <!-- Admin Only Links -->
                     <li data-target="kategori" class="admin-only"><a href="#"><i class="ph ph-folders"></i> <span>Kategori</span></a></li>
                     <li data-target="users" class="admin-only"><a href="#"><i class="ph ph-users"></i> <span>Data User</span></a></li>
+                    <li data-target="aktivitas"><a href="#"><i class="ph ph-list-bullets"></i> <span>Log Aktivitas</span></a></li>
                 </ul>
                 
                 <div class="sidebar-footer">
@@ -145,6 +146,10 @@
                     <div class="topbar-left">
                         <button id="menu-toggle" class="menu-toggle"><i class="ph ph-list"></i></button>
                         <h2 id="page-title">Dashboard</h2>
+                        <div class="topbar-datetime" aria-label="Tanggal dan waktu">
+                            <span id="current-date"></span>
+                            <time id="current-time"></time>
+                        </div>
                     </div>
                     <div class="topbar-right">
                         <div id="main-network-status" class="badge hidden" style="border-radius:1rem; padding: 0.3rem 0.8rem; font-size:0.85rem; font-weight: 500; display:flex; align-items:center; gap:0.4rem;"></div>
@@ -706,6 +711,30 @@
                                     <tbody>
                                         <!-- Rendered by JS -->
                                     </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="aktivitas-section" class="content-section hidden">
+                        <div class="glass-card">
+                            <div class="card-header flex-header" style="flex-wrap:wrap; gap:0.75rem;">
+                                <div>
+                                    <h3>Log Aktivitas</h3>
+                                </div>
+                                <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="app.clearActivityLog()"><i class="ph ph-trash"></i> Hapus Log Lokal</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table-modern neat-table" id="table-activity-log">
+                                    <thead>
+                                        <tr>
+                                            <th>Waktu</th>
+                                            <th>Pengguna</th>
+                                            <th>Aktivitas</th>
+                                            <th>Detail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
                                 </table>
                             </div>
                         </div>
