@@ -1588,6 +1588,40 @@ const app = {
         this.loadAlat();
     },
 
+    isAlatTidakLayakDipinjam: function (alat) {
+        const kondisi = String(alat.kondisi || alat.Kondisi || '').trim().toLowerCase();
+        const keterangan = String(alat.keterangan || alat.Keterangan || '').trim().toLowerCase();
+        const laranganPinjam = /tidak\s+(?:bisa|dapat|untuk)\s+dipinjam|tidak\s+dipinjamkan|jangan\s+dipinjam/;
+        return kondisi.includes('rusak') || kondisi.includes('perbaikan') || laranganPinjam.test(keterangan);
+    },
+
+    getAlatDalamPeminjamanAktif: async function () {
+        const transaksi = await db.getAll('peminjaman');
+        const identitasAlatDipinjam = new Set();
+        transaksi.forEach(peminjaman => {
+            if (String(peminjaman.status || '').trim().toUpperCase() !== 'DIPINJAM') return;
+            try {
+                const items = Array.isArray(peminjaman.items) ? peminjaman.items : JSON.parse(peminjaman.items || '[]');
+                items.forEach(item => {
+                    [item.id, item.newId, item.ID_Barang, item.id_barang, item.kode_seri, item.Kode_Seri]
+                        .filter(value => value !== undefined && value !== null && String(value).trim() !== '')
+                        .forEach(value => identitasAlatDipinjam.add(String(value).trim().toLowerCase()));
+                });
+            } catch (error) {
+                console.warn('Gagal membaca rincian alat pada peminjaman aktif:', error);
+            }
+        });
+        return identitasAlatDipinjam;
+    },
+
+    isAlatSedangDipinjam: function (alat, identitasAlatDipinjam) {
+        if (this.isAlatTidakLayakDipinjam(alat)) return false;
+        const identities = [alat.id, alat.newId, alat.ID_Barang, alat.id_barang, alat.kode_seri, alat.Kode_Seri]
+            .filter(value => value !== undefined && value !== null && String(value).trim() !== '')
+            .map(value => String(value).trim().toLowerCase());
+        return identities.some(identity => identitasAlatDipinjam.has(identity));
+    },
+
     loadAlat: async function () {
         const query = document.getElementById('alat-search')?.value.toLowerCase() || '';
         const rawAlat = await db.getAll('alat');
@@ -1602,11 +1636,12 @@ const app = {
             uniqueAlat.push(alat);
         });
         const allJurusanAlat = this.getFilteredData(uniqueAlat);
+        const identitasAlatDipinjam = await this.getAlatDalamPeminjamanAktif();
 
         // Calculate counts for status tabs
         const countAll = allJurusanAlat.length;
         const countTersedia = allJurusanAlat.filter(a => Number(a.jumlah_tersedia || 0) > 0).length;
-        const countDipinjam = allJurusanAlat.filter(a => (Number(a.jumlah_total || 0) - Number(a.jumlah_tersedia || 0)) > 0).length;
+        const countDipinjam = allJurusanAlat.filter(a => this.isAlatSedangDipinjam(a, identitasAlatDipinjam)).length;
         const countPerbaikan = allJurusanAlat.filter(a => a.kondisi && a.kondisi !== 'Baik').length;
 
         const bAll = document.getElementById('alat-badge-all');
@@ -1628,7 +1663,7 @@ const app = {
         if (this.state.alatStatusFilter === 'tersedia') {
             alatDataFiltered = alatDataFiltered.filter(a => Number(a.jumlah_tersedia || 0) > 0);
         } else if (this.state.alatStatusFilter === 'dipinjam') {
-            alatDataFiltered = alatDataFiltered.filter(a => (Number(a.jumlah_total || 0) - Number(a.jumlah_tersedia || 0)) > 0);
+            alatDataFiltered = alatDataFiltered.filter(a => this.isAlatSedangDipinjam(a, identitasAlatDipinjam));
         } else if (this.state.alatStatusFilter === 'perbaikan') {
             alatDataFiltered = alatDataFiltered.filter(a => a.kondisi && a.kondisi !== 'Baik');
         }
